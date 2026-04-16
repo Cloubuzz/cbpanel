@@ -1,24 +1,33 @@
 import React, { useState } from 'react';
 import { Zap, ArrowRight, Lock, Mail, Fingerprint, ScanFace, Globe } from 'lucide-react';
+import type { LoginCredentials } from '../store/slices/appSlice';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (credentials: LoginCredentials) => Promise<void>;
+  onClearError: () => void;
+  isLoading: boolean;
+  error: string | null;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+export const Login: React.FC<LoginProps> = ({ onLogin, onClearError, isLoading, error }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      setLoading(false);
-      onLogin();
-    }, 1500);
+
+    if (!email.trim() || !password.trim()) {
+      setFormError('Please enter username and password.');
+      return;
+    }
+
+    setFormError(null);
+    await onLogin({
+      email: email.trim(),
+      password,
+    });
   };
 
   return (
@@ -81,12 +90,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                  <div className={`relative bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 flex items-center transition-all duration-300 group-focus-within:border-teal-500/50 ${focusedField === 'email' ? 'border-teal-500 shadow-[0_0_15px_rgba(45,212,191,0.1)]' : 'hover:border-slate-600'}`}>
                     <Mail size={18} className={`mr-3 transition-colors ${focusedField === 'email' ? 'text-teal-400' : 'text-slate-500'}`} />
                     <input 
-                      type="email" 
+                      type="text"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (formError) {
+                          setFormError(null);
+                        }
+                        if (error) {
+                          onClearError();
+                        }
+                      }}
                       onFocus={() => setFocusedField('email')}
                       onBlur={() => setFocusedField(null)}
-                      placeholder="Enter corporate email"
+                      placeholder="Enter username or email"
+                      autoComplete="username"
                       className="bg-transparent border-none w-full text-sm text-white placeholder:text-slate-600 focus:ring-0 p-0 outline-none"
                     />
                  </div>
@@ -99,24 +117,39 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <input 
                       type="password" 
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (formError) {
+                          setFormError(null);
+                        }
+                        if (error) {
+                          onClearError();
+                        }
+                      }}
                       onFocus={() => setFocusedField('password')}
                       onBlur={() => setFocusedField(null)}
                       placeholder="Enter passkey"
+                      autoComplete="current-password"
                       className="bg-transparent border-none w-full text-sm text-white placeholder:text-slate-600 focus:ring-0 p-0 outline-none"
                     />
                  </div>
               </div>
 
+              {(formError || error) && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300">
+                  {formError || error}
+                </div>
+              )}
+
               <button 
                 type="submit" 
-                disabled={loading}
+                disabled={isLoading}
                 className="w-full h-12 mt-4 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white rounded-xl font-bold text-sm transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg shadow-teal-900/40 border border-teal-500/20"
               >
-                {loading ? (
+                {isLoading ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Initializing...</span>
+                    <span>Authenticating...</span>
                   </>
                 ) : (
                   <>

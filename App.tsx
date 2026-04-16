@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Sidebar } from './components/Sidebar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { Dashboard } from './pages/Dashboard';
@@ -26,115 +26,111 @@ import { OutletDetail } from './pages/OutletDetail';
 import { HelpDesk } from './pages/HelpDesk';
 import { View } from './types';
 import { Search, Bell, HelpCircle, Menu as MenuIcon } from 'lucide-react';
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from './store/hooks';
+import {
+  clearAuthError,
+  loginUser,
+  type LoginCredentials,
+  logout,
+  setSidebarOpen,
+} from './store/slices/appSlice';
+import {
+  selectAuthError,
+  selectAuthLoading,
+  selectCurrentUser,
+  selectIsAuthenticated,
+  selectIsSidebarOpen,
+} from './store/selectors/appSelectors';
+import { clearStoredAuthSession } from './services/authStorage';
+import {
+  DEFAULT_AUTHENTICATED_PATH,
+  getPathForView,
+  getViewFromPath,
+  LOGIN_PATH,
+  normalizeLandingPath,
+} from './routes';
+
+const AutomationDetailRoute: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { automationId } = useParams<{ automationId: string }>();
+  return <AutomationDetail automationId={automationId} onBack={onBack} />;
+};
+
+const OutletDetailRoute: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { outletId } = useParams<{ outletId: string }>();
+  return <OutletDetail outletId={outletId} onBack={onBack} />;
+};
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentView, setCurrentView] = useState<View>('dashboard');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
-  const [selectedAutomationId, setSelectedAutomationId] = useState<string | null>(null);
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
-  }
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const isSidebarOpen = useAppSelector(selectIsSidebarOpen);
+  const authLoading = useAppSelector(selectAuthLoading);
+  const authError = useAppSelector(selectAuthError);
+  const currentUser = useAppSelector(selectCurrentUser);
 
-  const renderContent = () => {
-    switch (currentView) {
-      case 'dashboard':
-        return <Dashboard />;
-      case 'chat':
-        return <Chat />;
-      case 'automations':
-        return (
-          <AutomationManager 
-            onAdd={() => {
-              setSelectedAutomationId(null);
-              setCurrentView('automation-detail');
-            }}
-            onEdit={(id) => {
-              setSelectedAutomationId(id);
-              setCurrentView('automation-detail');
-            }}
-          />
-        );
-      case 'automation-detail':
-        return (
-          <AutomationDetail 
-            automationId={selectedAutomationId || undefined}
-            onBack={() => setCurrentView('automations')}
-          />
-        );
-      case 'email-manager':
-        return <EmailManager />;
-      case 'whatsapp-manager':
-        return <WhatsAppManager />;
-      case 'campaigns':
-        return <Campaigns />;
-      case 'segments':
-        return <Segments />;
-      case 'settings':
-        return <Settings />;
-      case 'live-orders':
-        return <LiveOrders />;
-      case 'menu-items':
-        return <MenuItems />;
-      case 'modifiers':
-        return <Modifiers />;
-      case 'menus':
-        return <Menus />;
-      case 'categories':
-        return <Categories />;
-      case 'banners':
-        return <Banners />;
-      case 'vouchers':
-        return <Vouchers />;
-      case 'discounts':
-        return <Discounts />;
-      case 'outlets':
-        return (
-          <OutletManager 
-            onAddOutlet={() => {
-              setSelectedOutletId(null);
-              setCurrentView('outlet-detail');
-            }}
-            onEditOutlet={(id) => {
-              setSelectedOutletId(id);
-              setCurrentView('outlet-detail');
-            }}
-          />
-        );
-      case 'outlet-detail':
-        return (
-          <OutletDetail 
-            outletId={selectedOutletId || undefined}
-            onBack={() => {
-              setCurrentView('outlets');
-              setSelectedOutletId(null);
-            }}
-          />
-        );
-      case 'reports':
-        return (
-          <Reports 
-            onSelectReport={() => {
-              setCurrentView('report-detail');
-            }} 
-          />
-        );
-      case 'report-detail':
-        return (
-          <ReportDetail 
-            onBack={() => {
-              setCurrentView('reports');
-            }} 
-          />
-        );
-      case 'help-desk':
-        return <HelpDesk />;
-      default:
-        return <Dashboard />;
+  const currentView = React.useMemo(() => getViewFromPath(location.pathname), [location.pathname]);
+  const landingPath = React.useMemo(
+    () => normalizeLandingPath(currentUser?.landingPage),
+    [currentUser?.landingPage],
+  );
+  const mobileViewTitle = React.useMemo(
+    () => currentView.replace(/-/g, ' '),
+    [currentView],
+  );
+
+  const handleLogin = async (credentials: LoginCredentials) => {
+    const result = await dispatch(loginUser(credentials));
+
+    if (loginUser.fulfilled.match(result)) {
+      const nextPath = normalizeLandingPath(result.payload.user.landingPage);
+      navigate(nextPath, { replace: true });
     }
   };
+
+  const handleLogout = () => {
+    clearStoredAuthSession();
+    dispatch(logout());
+    navigate(LOGIN_PATH, { replace: true });
+  };
+
+  const handleSidebarNavigation = (view: View) => {
+    const nextPath = getPathForView(view);
+    navigate(nextPath);
+  };
+
+  const goToAutomationsList = () => navigate('/admin/automations');
+  const goToOutletsList = () => navigate('/admin/outlets');
+  const goToReportsList = () => navigate('/admin/reports');
+
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route
+          path={LOGIN_PATH}
+          element={
+            <Login
+              onLogin={handleLogin}
+              onClearError={() => dispatch(clearAuthError())}
+              isLoading={authLoading}
+              error={authError}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to={LOGIN_PATH} replace />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 selection:bg-teal-500 selection:text-white font-sans transition-colors duration-300">
@@ -144,10 +140,10 @@ const App: React.FC = () => {
       
       <Sidebar 
         currentView={currentView} 
-        onChangeView={setCurrentView} 
-        onLogout={() => setIsAuthenticated(false)}
+        onChangeView={handleSidebarNavigation}
+        onLogout={handleLogout}
         isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
+        onClose={() => dispatch(setSidebarOpen(false))}
       />
       
       <main className="flex-1 flex flex-col h-full overflow-hidden relative transition-all duration-300 z-10">
@@ -157,7 +153,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-4">
             {/* Hamburger Menu for Mobile */}
             <button 
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => dispatch(setSidebarOpen(true))}
               className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"
             >
               <MenuIcon size={24} />
@@ -177,7 +173,7 @@ const App: React.FC = () => {
             />
           </div>
           </div>
-          <div className="md:hidden font-bold text-lg capitalize text-white">{currentView}</div>
+          <div className="md:hidden font-bold text-lg capitalize text-white">{mobileViewTitle}</div>
 
           {/* Right Actions */}
           <div className="flex items-center gap-4">
@@ -194,8 +190,8 @@ const App: React.FC = () => {
             {/* User Profile */}
             <div className="flex items-center gap-3 pl-2 cursor-pointer group">
                 <div className="text-right hidden sm:block">
-                    <div className="text-sm font-bold text-white group-hover:text-teal-400 transition-colors">Alex C.</div>
-                    <div className="text-xs text-slate-400">Admin</div>
+                  <div className="text-sm font-bold text-white group-hover:text-teal-400 transition-colors">{currentUser?.name || 'User'}</div>
+                  <div className="text-xs text-slate-400">{currentUser?.userType || 'Admin'}</div>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 border border-white/10 shadow-md group-hover:shadow-[0_0_15px_rgba(20,184,166,0.3)] transition-all"></div>
             </div>
@@ -204,7 +200,77 @@ const App: React.FC = () => {
 
         {/* View Content - Background depends on theme (Light in light mode, Dark in dark mode) */}
         <div className="flex-1 overflow-auto scroll-smooth bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-          {renderContent()}
+          <Routes>
+            <Route path="/" element={<Navigate to={landingPath || DEFAULT_AUTHENTICATED_PATH} replace />} />
+            <Route path="/admin" element={<Navigate to={landingPath || DEFAULT_AUTHENTICATED_PATH} replace />} />
+
+            <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/admin/chat" element={<Chat />} />
+
+            <Route
+              path="/admin/automations"
+              element={
+                <AutomationManager
+                  onAdd={() => navigate('/admin/automations/new')}
+                  onEdit={(id) => navigate(`/admin/automations/${id}`)}
+                />
+              }
+            />
+            <Route
+              path="/admin/automations/new"
+              element={<AutomationDetail onBack={goToAutomationsList} />}
+            />
+            <Route
+              path="/admin/automations/:automationId"
+              element={<AutomationDetailRoute onBack={goToAutomationsList} />}
+            />
+
+            <Route path="/admin/email-manager" element={<EmailManager />} />
+            <Route path="/admin/whatsapp-manager" element={<WhatsAppManager />} />
+            <Route path="/admin/campaigns" element={<Campaigns />} />
+            <Route path="/admin/segments" element={<Segments />} />
+            <Route path="/admin/settings" element={<Settings />} />
+            <Route path="/admin/live-orders" element={<LiveOrders />} />
+            <Route path="/admin/menu-items" element={<MenuItems />} />
+            <Route path="/admin/modifiers" element={<Modifiers />} />
+            <Route path="/admin/menus" element={<Menus />} />
+            <Route path="/admin/categories" element={<Categories />} />
+            <Route path="/admin/banners" element={<Banners />} />
+            <Route path="/admin/vouchers" element={<Vouchers />} />
+            <Route path="/admin/discounts" element={<Discounts />} />
+
+            <Route
+              path="/admin/outlets"
+              element={
+                <OutletManager
+                  onAddOutlet={() => navigate('/admin/outlets/new')}
+                  onEditOutlet={(id) => navigate(`/admin/outlets/${id}`)}
+                />
+              }
+            />
+            <Route
+              path="/admin/outlets/new"
+              element={<OutletDetail onBack={goToOutletsList} />}
+            />
+            <Route
+              path="/admin/outlets/:outletId"
+              element={<OutletDetailRoute onBack={goToOutletsList} />}
+            />
+
+            <Route
+              path="/admin/reports"
+              element={<Reports onSelectReport={() => navigate('/admin/reports/detail')} />}
+            />
+            <Route
+              path="/admin/reports/detail"
+              element={<ReportDetail onBack={goToReportsList} />}
+            />
+
+            <Route path="/admin/help-desk" element={<HelpDesk />} />
+
+            <Route path={LOGIN_PATH} element={<Navigate to={landingPath || DEFAULT_AUTHENTICATED_PATH} replace />} />
+            <Route path="*" element={<Navigate to={landingPath || DEFAULT_AUTHENTICATED_PATH} replace />} />
+          </Routes>
         </div>
       </main>
     </div>
