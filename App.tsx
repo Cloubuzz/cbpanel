@@ -10,7 +10,7 @@ import { Campaigns } from './pages/Campaigns';
 import { Chat } from './pages/Chat';
 import { Segments } from './pages/Segments';
 import { Settings } from './pages/Settings';
-import { LiveOrders } from './pages/LiveOrders';
+import { LiveOrders } from './pages/live-orders';
 import { MenuItems } from './pages/MenuItems';
 import { Login } from './pages/Login';
 import { Modifiers } from './pages/Modifiers';
