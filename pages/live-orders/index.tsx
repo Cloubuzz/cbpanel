@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingBag, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import {
@@ -80,6 +80,21 @@ export const LiveOrders: React.FC = () => {
   useEffect(() => {
     if (orderDetail) setPaymentType(orderDetail.payment.Type);
   }, [orderDetail]);
+
+  const AUTO_REFRESH_TABS: OrderTab[] = ['Pending', 'Accepted', 'CreditCard'];
+  const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      AUTO_REFRESH_TABS.forEach((tab) => {
+        dispatch(invalidateTab(tab));
+        dispatch(loadTabOrders(tab));
+      });
+    }, AUTO_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredOrders = currentOrders.filter((order) => {
     const q = searchQuery.toLowerCase();
