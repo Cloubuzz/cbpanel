@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ShoppingBag, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import {
@@ -8,6 +8,7 @@ import {
   loadTabOrders,
   loadOrderDetail,
   loadOutlets,
+  processOrderAction,
 } from '../../store/slices/ordersSlice';
 import {
   selectActiveTab,
@@ -24,8 +25,9 @@ import {
   selectOutlets,
   selectOutletsLoading,
   selectOutletsError,
+  selectProcessing,
 } from '../../store/selectors/ordersSelectors';
-import type { OrderTab, Outlet } from '../../services/ordersApi';
+import type { OrderTab, Outlet, ProcessOrderPayload } from '../../services/ordersApi';
 import { StatusRail } from './components/StatusRail';
 import { OrderListPanel } from './components/OrderListPanel';
 import { OrderDetailHeader } from './components/OrderDetailHeader';
@@ -54,10 +56,14 @@ export const LiveOrders: React.FC = () => {
   const outlets         = useAppSelector(selectOutlets);
   const outletsLoading  = useAppSelector(selectOutletsLoading);
   const outletsError    = useAppSelector(selectOutletsError);
+  const isProcessing    = useAppSelector(selectProcessing);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState<{ show: boolean; type: 'Accept' | 'Reject' | null }>({ show: false, type: null });
   const [paymentType, setPaymentType] = useState('CreditCard');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [notes, setNotes] = useState('');
   const [showOutletModal, setShowOutletModal] = useState(false);
   const [outletSearch, setOutletSearch] = useState('');
 
@@ -78,23 +84,16 @@ export const LiveOrders: React.FC = () => {
   }, [selectedOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (orderDetail) setPaymentType(orderDetail.payment.Type);
+    if (orderDetail) {
+      setPaymentType(orderDetail.payment.Type);
+      setRemarks(orderDetail.order.Remarks ?? '');
+      setDeliveryAddress(
+        orderDetail.order.Address
+          ? `${orderDetail.order.Address}${orderDetail.order.Area ? `, ${orderDetail.order.Area}` : ''}`
+          : ''
+      );
+    }
   }, [orderDetail]);
-
-  const AUTO_REFRESH_TABS: OrderTab[] = ['Pending', 'Accepted', 'CreditCard'];
-  const AUTO_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
-  const activeTabRef = useRef(activeTab);
-  activeTabRef.current = activeTab;
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      AUTO_REFRESH_TABS.forEach((tab) => {
-        dispatch(invalidateTab(tab));
-        dispatch(loadTabOrders(tab));
-      });
-    }, AUTO_REFRESH_MS);
-    return () => clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredOrders = currentOrders.filter((order) => {
     const q = searchQuery.toLowerCase();
@@ -106,6 +105,64 @@ export const LiveOrders: React.FC = () => {
   });
 
   const selectedOrder = currentOrders.find((o) => o.ID === selectedOrderId) ?? currentOrders[0] ?? null;
+
+  const buildPayload = useCallback((overrides: Partial<ProcessOrderPayload>): ProcessOrderPayload => ({
+    orderID: selectedOrder?.ID ?? 0,
+    status: selectedOrder?.Status ?? '',
+    rejectReason: '',
+    notes,
+    remarks,
+    outletID: String(selectedOrder?.outletid ?? ''),
+    paymentType,
+    outletName: orderDetail?.order.OutletName ?? '',
+    deliveryAddress,
+    ipAddress: '',
+    isFinalAction: false,
+    ...overrides,
+  }), [selectedOrder, notes, remarks, paymentType, orderDetail, deliveryAddress]);
+
+  const handleAccept = useCallback(() => {
+    const payload = buildPayload({ status: 'Confirmed', isFinalAction: true });
+    dispatch(processOrderAction(payload)).unwrap().then(() => {
+      setShowConfirmModal({ show: false, type: null });
+      dispatch(invalidateTab(activeTab));
+      dispatch(loadTabOrders(activeTab));
+    }).catch(() => {/* error visible in store */});
+  }, [dispatch, buildPayload, activeTab]);
+
+  const handleReject = useCallback((rejectReason: string) => {
+    const payload = buildPayload({ status: 'Rejected', rejectReason, isFinalAction: true });
+    dispatch(processOrderAction(payload)).unwrap().then(() => {
+      setShowConfirmModal({ show: false, type: null });
+      dispatch(invalidateTab(activeTab));
+      dispatch(loadTabOrders(activeTab));
+    }).catch(() => {/* error visible in store */});
+  }, [dispatch, buildPayload, activeTab]);
+
+  const handleConfirmAction = useCallback((rejectReason: string) => {
+    if (showConfirmModal.type === 'Accept') handleAccept();
+    else if (showConfirmModal.type === 'Reject') handleReject(rejectReason);
+  }, [showConfirmModal.type, handleAccept, handleReject]);
+
+  const reloadDetail = useCallback(() => {
+    if (selectedOrder) dispatch(loadOrderDetail(selectedOrder.ID));
+  }, [dispatch, selectedOrder]);
+
+  const handleSaveAddress = useCallback(() => {
+    dispatch(processOrderAction(buildPayload({ deliveryAddress }))).unwrap().then(reloadDetail).catch(() => {});
+  }, [dispatch, buildPayload, deliveryAddress, reloadDetail]);
+
+  const handleSaveRemarks = useCallback(() => {
+    dispatch(processOrderAction(buildPayload({ remarks }))).unwrap().then(reloadDetail).catch(() => {});
+  }, [dispatch, buildPayload, remarks, reloadDetail]);
+
+  const handleSaveNotes = useCallback(() => {
+    dispatch(processOrderAction(buildPayload({ notes }))).unwrap().then(reloadDetail).catch(() => {});
+  }, [dispatch, buildPayload, notes, reloadDetail]);
+
+  const handleChangePaymentType = useCallback(() => {
+    dispatch(processOrderAction(buildPayload({ paymentType }))).unwrap().then(reloadDetail).catch(() => {});
+  }, [dispatch, buildPayload, paymentType, reloadDetail]);
 
   const handleSwitchOutlet = () => {
     setShowOutletModal(true);
@@ -174,7 +231,18 @@ export const LiveOrders: React.FC = () => {
                   <OrderItemsTable
                     orderDetail={orderDetail}
                     paymentType={paymentType}
+                    notes={notes}
+                    remarks={remarks}
+                    deliveryAddress={deliveryAddress}
+                    isProcessing={isProcessing}
                     onPaymentTypeChange={setPaymentType}
+                    onNotesChange={setNotes}
+                    onRemarksChange={setRemarks}
+                    onDeliveryAddressChange={setDeliveryAddress}
+                    onSaveAddress={handleSaveAddress}
+                    onSaveNotes={handleSaveNotes}
+                    onSaveRemarks={handleSaveRemarks}
+                    onChangePaymentType={handleChangePaymentType}
                   />
                   <OutletInfoCard orderDetail={orderDetail} onSwitchOutlet={handleSwitchOutlet} />
                   {orderLogs && <OrderActivityLogs orderLogs={orderLogs} />}
@@ -205,7 +273,8 @@ export const LiveOrders: React.FC = () => {
         <ConfirmActionModal
           type={showConfirmModal.type}
           orderId={selectedOrder?.ID}
-          onConfirm={() => setShowConfirmModal({ show: false, type: null })}
+          isProcessing={isProcessing}
+          onConfirm={handleConfirmAction}
           onCancel={() => setShowConfirmModal({ show: false, type: null })}
         />
       )}

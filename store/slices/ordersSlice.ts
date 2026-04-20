@@ -5,12 +5,14 @@ import {
   fetchOrderLogs,
   fetchPaymentLogs,
   fetchOutlets,
+  processOrder,
   type RawOrder,
   type OrderTab,
   type OrderDetail,
   type OrderLogs,
   type PaymentLog,
   type Outlet,
+  type ProcessOrderPayload,
 } from '../../services/ordersApi';
 import type { RootState } from '../index';
 
@@ -34,6 +36,8 @@ interface OrdersState {
   outlets: Outlet[];
   outletsLoading: boolean;
   outletsError: string | null;
+  processing: boolean;
+  processError: string | null;
 }
 
 const initialState: OrdersState = {
@@ -48,6 +52,8 @@ const initialState: OrdersState = {
   outlets: [],
   outletsLoading: false,
   outletsError: null,
+  processing: false,
+  processError: null,
 };
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
@@ -87,6 +93,20 @@ export const loadOrderDetail = createAsyncThunk<
     logs: logsResult.status === 'fulfilled' ? logsResult.value : null as unknown as OrderLogs,
     paymentLogs: paymentLogsResult.status === 'fulfilled' ? paymentLogsResult.value : [],
   };
+});
+
+export const processOrderAction = createAsyncThunk<
+  void,
+  ProcessOrderPayload,
+  { state: RootState; rejectValue: string }
+>('orders/processOrder', async (payload, { getState, rejectWithValue }) => {
+  const token = getState().app.token ?? '';
+  try {
+    await processOrder(payload, token);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to process order.';
+    return rejectWithValue(message);
+  }
 });
 
 export const loadOutlets = createAsyncThunk<
@@ -164,6 +184,20 @@ const ordersSlice = createSlice({
     builder.addCase(loadOrderDetail.rejected, (state, action) => {
       state.detailLoading = false;
       state.detailError = action.payload ?? 'Failed to load order detail.';
+    });
+
+    // Process order
+    builder.addCase(processOrderAction.pending, (state) => {
+      state.processing = true;
+      state.processError = null;
+    });
+    builder.addCase(processOrderAction.fulfilled, (state) => {
+      state.processing = false;
+      state.processError = null;
+    });
+    builder.addCase(processOrderAction.rejected, (state, action) => {
+      state.processing = false;
+      state.processError = action.payload ?? 'Failed to process order.';
     });
 
     // Outlets

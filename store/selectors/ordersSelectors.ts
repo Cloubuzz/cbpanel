@@ -19,3 +19,5 @@ export const selectDetailError = (state: RootState) => state.orders.detailError;
 export const selectOutlets = (state: RootState) => state.orders.outlets;
 export const selectOutletsLoading = (state: RootState) => state.orders.outletsLoading;
 export const selectOutletsError = (state: RootState) => state.orders.outletsError;
+export const selectProcessing = (state: RootState) => state.orders.processing;
+export const selectProcessError = (state: RootState) => state.orders.processError;

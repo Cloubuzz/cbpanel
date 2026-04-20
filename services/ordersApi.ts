@@ -303,3 +303,40 @@ export const fetchOutlets = async (city: string, token: string): Promise<Outlet[
 
   return response.data;
 };
+
+// ─── Process Order ────────────────────────────────────────────────────────────
+
+export interface ProcessOrderPayload {
+  orderID: number;
+  status: string;
+  rejectReason: string;
+  notes: string;
+  remarks: string;
+  outletID: string;
+  paymentType: string;
+  outletName: string;
+  deliveryAddress: string;
+  ipAddress: string;
+  isFinalAction: boolean;
+}
+
+interface ProcessOrderApiResponse {
+  success: boolean;
+}
+
+export const processOrder = async (payload: ProcessOrderPayload, token: string): Promise<void> => {
+  const url = `${API_BASE_PATH}/orders/process`;
+
+  const response = await requestJson<ProcessOrderApiResponse>(url, {
+    method: 'POST',
+    headers: {
+      accept: '*/*',
+      Authorization: `Bearer ${token}`,
+    },
+    body: payload,
+  });
+
+  if (!response.success) {
+    throw new Error('Order process action failed.');
+  }
+};

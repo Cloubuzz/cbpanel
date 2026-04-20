@@ -1,14 +1,40 @@
 import React from 'react';
-import { MapPin, MessageSquare, Save, ChevronDown } from 'lucide-react';
+import { MapPin, MessageSquare, Save, ChevronDown, FileText, Loader2 } from 'lucide-react';
 import type { OrderDetail } from '../../../services/ordersApi';
 
 interface Props {
   orderDetail: OrderDetail;
   paymentType: string;
+  notes: string;
+  remarks: string;
+  deliveryAddress: string;
+  isProcessing: boolean;
   onPaymentTypeChange: (type: string) => void;
+  onNotesChange: (v: string) => void;
+  onRemarksChange: (v: string) => void;
+  onDeliveryAddressChange: (v: string) => void;
+  onSaveAddress: () => void;
+  onSaveNotes: () => void;
+  onSaveRemarks: () => void;
+  onChangePaymentType: () => void;
 }
 
-export const OrderItemsTable: React.FC<Props> = ({ orderDetail, paymentType, onPaymentTypeChange }) => (
+export const OrderItemsTable: React.FC<Props> = ({
+  orderDetail,
+  paymentType,
+  notes,
+  remarks,
+  deliveryAddress,
+  isProcessing,
+  onPaymentTypeChange,
+  onNotesChange,
+  onRemarksChange,
+  onDeliveryAddressChange,
+  onSaveAddress,
+  onSaveNotes,
+  onSaveRemarks,
+  onChangePaymentType,
+}) => (
   <div className="bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
     <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
       <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Order Items</h3>
@@ -61,7 +87,7 @@ export const OrderItemsTable: React.FC<Props> = ({ orderDetail, paymentType, onP
     </table>
 
     <div className="p-6 bg-slate-50 dark:bg-slate-900/50 flex flex-col lg:flex-row gap-6">
-      {/* Address + Remarks */}
+      {/* Address + Remarks + Notes */}
       <div className="flex-1 space-y-4">
         <div>
           <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Delivery Address</label>
@@ -70,11 +96,16 @@ export const OrderItemsTable: React.FC<Props> = ({ orderDetail, paymentType, onP
               <MapPin className="absolute left-3 top-3 text-slate-400" size={16} />
               <textarea
                 className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/50 transition-all min-h-[60px]"
-                defaultValue={`${orderDetail.order.Address}${orderDetail.order.Area ? `, ${orderDetail.order.Area}` : ''}`}
+                value={deliveryAddress}
+                onChange={(e) => onDeliveryAddressChange(e.target.value)}
               />
             </div>
-            <button className="self-end p-2.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transition-all shadow-md shadow-teal-500/20">
-              <Save size={18} />
+            <button
+              onClick={onSaveAddress}
+              disabled={isProcessing}
+              className="self-end p-2.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transition-all shadow-md shadow-teal-500/20 disabled:opacity-60"
+            >
+              {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             </button>
           </div>
         </div>
@@ -86,12 +117,39 @@ export const OrderItemsTable: React.FC<Props> = ({ orderDetail, paymentType, onP
               <MessageSquare className="absolute left-3 top-3 text-slate-400" size={16} />
               <textarea
                 className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/50 transition-all min-h-[60px]"
-                placeholder="Add internal notes or customer remarks..."
-                defaultValue={orderDetail.order.Remarks}
+                placeholder="Add customer remarks..."
+                value={remarks}
+                onChange={(e) => onRemarksChange(e.target.value)}
               />
             </div>
-            <button className="self-end p-2.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transition-all shadow-md shadow-teal-500/20">
-              <Save size={18} />
+            <button
+              onClick={onSaveRemarks}
+              disabled={isProcessing}
+              className="self-end p-2.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transition-all shadow-md shadow-teal-500/20 disabled:opacity-60"
+            >
+              {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Internal Notes</label>
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <FileText className="absolute left-3 top-3 text-slate-400" size={16} />
+              <textarea
+                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/50 transition-all min-h-[60px]"
+                placeholder="Add internal notes..."
+                value={notes}
+                onChange={(e) => onNotesChange(e.target.value)}
+              />
+            </div>
+            <button
+              onClick={onSaveNotes}
+              disabled={isProcessing}
+              className="self-end p-2.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transition-all shadow-md shadow-teal-500/20 disabled:opacity-60"
+            >
+              {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
             </button>
           </div>
         </div>
@@ -145,7 +203,12 @@ export const OrderItemsTable: React.FC<Props> = ({ orderDetail, paymentType, onP
               size={18}
             />
           </div>
-          <button className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-lg">
+          <button
+            onClick={onChangePaymentType}
+            disabled={isProcessing}
+            className="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-sm font-bold hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {isProcessing && <Loader2 size={16} className="animate-spin" />}
             Change Payment Type
           </button>
         </div>
