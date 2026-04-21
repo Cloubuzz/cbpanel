@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Search, 
@@ -11,9 +11,14 @@ import {
   Menu as MenuIcon,
   Image as ImageIcon,
   Upload,
-  Clock
+  Clock,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchCategories, addCategory, updateCategory, type ApiCategory } from '../services/categoriesApi';
 
 interface Availability {
   day: string;
@@ -25,11 +30,13 @@ interface Category {
   id: string;
   name: string;
   description: string;
-  menus: string[];
+  menuID: number;
   isActive: boolean;
   order: number;
   image?: string;
   availability: Availability[];
+  // raw API fields preserved for save payload
+  apiRaw?: ApiCategory;
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -40,53 +47,68 @@ const DEFAULT_AVAILABILITY: Availability[] = DAYS.map(day => ({
   slots: [{ start: '00:00', end: '23:59' }]
 }));
 
-const MOCK_MENUS = [
-  { id: 'm1', name: 'Main Menu' },
-  { id: 'm2', name: 'Breakfast Menu' },
-  { id: 'm3', name: 'Late Night' },
-  { id: 'm4', name: 'Beverages' },
-];
-
-const INITIAL_CATEGORIES: Category[] = [
-  {
-    id: 'c1',
-    name: 'Burgers',
-    description: 'Juicy beef and chicken burgers',
-    menus: ['m1', 'm3'],
-    isActive: true,
-    order: 1,
-    image: 'https://picsum.photos/seed/burger/800/200',
-    availability: DEFAULT_AVAILABILITY
-  },
-  {
-    id: 'c2',
-    name: 'Sides',
-    description: 'Perfect companions for your meal',
-    menus: ['m1', 'm2', 'm3'],
-    isActive: true,
-    order: 2,
-    image: 'https://picsum.photos/seed/fries/800/200',
-    availability: DEFAULT_AVAILABILITY
-  }
-];
-
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+const buildAvailabilityFromApi = (apiCat: ApiCategory): Availability[] => {
+  const allDays = apiCat.Days === 'All';
+  const timeStart = apiCat.startTime || '00:00';
+  const timeEnd = (apiCat.endTime && apiCat.endTime !== '00:00') ? apiCat.endTime : '23:59';
+  return DAYS.map(day => ({
+    day,
+    enabled: allDays,
+    slots: [{ start: timeStart, end: timeEnd }],
+  }));
+};
+
+const mapApiCategory = (apiCat: ApiCategory): Category => ({
+  id: String(apiCat.ID),
+  name: apiCat.Name,
+  description: apiCat.Description || '',
+  menuID: apiCat.menuID,
+  isActive: apiCat.IsActive,
+  order: apiCat.ORDER,
+  image: apiCat.CategoryImage && apiCat.CategoryImage !== '' && apiCat.IsCategoryImageActive
+    ? `https://adminapi.broadwaypizza.com.pk/images/category/${apiCat.CategoryImage}`
+    : undefined,
+  availability: buildAvailabilityFromApi(apiCat),
+  apiRaw: apiCat,
+});
+
 export const Categories: React.FC = () => {
+  const token = useAppSelector(selectToken);
   const [isSaving, setIsSaving] = useState(false);
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [menuSearch, setMenuSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadCategories = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const apiCategories = await fetchCategories(token, false);
+      setCategories(apiCategories.map(mapApiCategory).sort((a, b) => Number(b.id) - Number(a.id)));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load categories.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const handleCreateNew = () => {
     const newCategory: Category = {
       id: generateId('cat'),
       name: '',
       description: '',
-      menus: [],
+      menuID: 0,
       isActive: true,
       order: categories.length + 1,
       availability: DEFAULT_AVAILABILITY
@@ -111,68 +133,78 @@ export const Categories: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!currentCategory) return;
-    
+    if (!currentCategory || !token) return;
+
+    const isNew = !currentCategory.apiRaw;
+
+    if (!currentCategory.name.trim()) {
+      alert('Category name is required.');
+      return;
+    }
+
     setIsSaving(true);
-    const payload = {
-      type: 'category',
-      action: categories.find(c => c.id === currentCategory.id) ? 'update' : 'create',
-      data: currentCategory,
-      timestamp: new Date().toISOString()
-    };
-
     try {
-      const response = await fetch('https://automate.megnus.app/webhook/bwv3api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      if (isNew) {
+        const firstEnabled = currentCategory.availability.find(a => a.enabled);
+        const startTime = firstEnabled?.slots[0]?.start ?? '00:00';
+        const endTime = firstEnabled?.slots[0]?.end ?? '00:00';
+        const allEnabled = currentCategory.availability.every(a => a.enabled);
+        const days = allEnabled
+          ? 'All'
+          : currentCategory.availability.filter(a => a.enabled).map(a => a.day).join(',');
 
-      if (response.ok) {
-        if (categories.find(c => c.id === currentCategory.id)) {
-          setCategories(categories.map(c => c.id === currentCategory.id ? currentCategory : c));
-        } else {
-          setCategories([...categories, currentCategory]);
-        }
+        await addCategory(token, {
+          id: 0,
+          menuID: currentCategory.menuID || 4109,
+          name: currentCategory.name.trim(),
+          description: currentCategory.description,
+          isActive: currentCategory.isActive,
+          order: currentCategory.order,
+          startTime,
+          endTime,
+          startTime1: '00:00',
+          endTime1: '00:00',
+          days,
+          outlets: 'All',
+        });
+
+        await loadCategories();
         setIsEditing(false);
         setCurrentCategory(null);
-        alert('Category saved and submitted successfully!');
       } else {
-        throw new Error('Failed to submit to webhook');
+        const firstEnabled = currentCategory.availability.find(a => a.enabled);
+        const startTime = firstEnabled?.slots[0]?.start ?? '00:00';
+        const endTime = firstEnabled?.slots[0]?.end ?? '00:00';
+        const allEnabled = currentCategory.availability.every(a => a.enabled);
+        const days = allEnabled
+          ? 'All'
+          : currentCategory.availability.filter(a => a.enabled).map(a => a.day).join(',');
+
+        await updateCategory(token, {
+          id: Number(currentCategory.id),
+          menuID: currentCategory.menuID || 4109,
+          name: currentCategory.name.trim(),
+          description: currentCategory.description,
+          isActive: currentCategory.isActive,
+          order: currentCategory.order,
+          startTime,
+          endTime,
+          startTime1: '00:00',
+          endTime1: '00:00',
+          days,
+          outlets: 'All',
+        });
+
+        await loadCategories();
+        setIsEditing(false);
+        setCurrentCategory(null);
       }
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Category saved locally, but webhook submission failed.');
-      // Still save locally even if webhook fails
-      if (categories.find(c => c.id === currentCategory.id)) {
-        setCategories(categories.map(c => c.id === currentCategory.id ? currentCategory : c));
-      } else {
-        setCategories([...categories, currentCategory]);
-      }
-      setIsEditing(false);
-      setCurrentCategory(null);
+      alert(error instanceof Error ? error.message : 'Failed to save category.');
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const addMenu = (menuId: string) => {
-    if (!currentCategory || currentCategory.menus.includes(menuId)) return;
-    setCurrentCategory({
-      ...currentCategory,
-      menus: [...currentCategory.menus, menuId]
-    });
-    setMenuSearch('');
-  };
-
-  const removeMenu = (menuId: string) => {
-    if (!currentCategory) return;
-    setCurrentCategory({
-      ...currentCategory,
-      menus: currentCategory.menus.filter(id => id !== menuId)
-    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,11 +226,6 @@ export const Categories: React.FC = () => {
     c.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredMenus = MOCK_MENUS.filter(m => 
-    m.name.toLowerCase().includes(menuSearch.toLowerCase()) &&
-    !currentCategory?.menus.includes(m.id)
-  );
-
   return (
     <div className="p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Header Section */}
@@ -212,13 +239,23 @@ export const Categories: React.FC = () => {
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Organize your menu items into logical categories</p>
         </div>
-        <button 
-          onClick={handleCreateNew}
-          className="flex items-center gap-2 px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-teal-500/20 active:scale-95"
-        >
-          <Plus size={20} />
-          Create New Category
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={loadCategories}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-2xl font-bold border border-slate-200 dark:border-slate-800 hover:border-teal-500 transition-all disabled:opacity-50"
+            title="Refresh"
+          >
+            <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+          </button>
+          <button 
+            onClick={handleCreateNew}
+            className="flex items-center gap-2 px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white rounded-2xl font-bold transition-all shadow-lg shadow-teal-500/20 active:scale-95"
+          >
+            <Plus size={20} />
+            Create New Category
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -235,8 +272,27 @@ export const Categories: React.FC = () => {
             />
           </div>
 
+          {loadError && (
+            <div className="flex items-center gap-3 p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400">
+              <AlertCircle size={18} className="shrink-0" />
+              <p className="text-sm font-medium">{loadError}</p>
+            </div>
+          )}
+
           <div className="space-y-4">
-            {filteredCategories.map(category => (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="p-5 bg-white dark:bg-slate-900 rounded-[32px] border-2 border-transparent shadow-sm animate-pulse">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800" />
+                    <div className="space-y-2">
+                      <div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                      <div className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : !isLoading && filteredCategories.map(category => (
               <motion.div 
                 layout
                 key={category.id}
@@ -254,7 +310,7 @@ export const Categories: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-900 dark:text-white">{category.name}</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{category.menus.length} Menus Assigned</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Order #{category.order}</p>
                     </div>
                   </div>
                   <div className={`px-2 py-1 rounded-lg text-[8px] font-bold uppercase tracking-widest ${category.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-100 text-slate-400'}`}>
@@ -263,12 +319,12 @@ export const Categories: React.FC = () => {
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
-                  {category.menus.map(mId => (
-                    <span key={mId} className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 bg-teal-500/10 text-teal-500 rounded-lg border border-teal-500/20 flex items-center gap-1">
+                  {category.menuID > 0 && (
+                    <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 bg-teal-500/10 text-teal-500 rounded-lg border border-teal-500/20 flex items-center gap-1">
                       <MenuIcon size={10} />
-                      {MOCK_MENUS.find(m => m.id === mId)?.name}
+                      Menu #{category.menuID}
                     </span>
-                  ))}
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -401,82 +457,18 @@ export const Categories: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Menu Assignment */}
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-500 flex items-center justify-center">
-                          <MenuIcon size={18} />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Assigned Menus</h3>
+                  {/* Menu Info */}
+                  {currentCategory.menuID > 0 && (
+                    <div className="flex items-center gap-3 p-4 bg-teal-500/5 border border-teal-500/20 rounded-2xl">
+                      <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-500 flex items-center justify-center shrink-0">
+                        <MenuIcon size={18} />
                       </div>
-                      
-                      <div className="relative">
-                        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2 focus-within:border-teal-500 transition-all">
-                          <Search size={16} className="text-slate-400" />
-                          <input 
-                            type="text" 
-                            placeholder="Search menu to add..."
-                            value={menuSearch}
-                            onChange={(e) => setMenuSearch(e.target.value)}
-                            className="bg-transparent border-none outline-none text-sm w-48 dark:text-white"
-                          />
-                        </div>
-                        
-                        {menuSearch && (
-                          <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-                            <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
-                              {filteredMenus.length > 0 ? filteredMenus.map(menu => (
-                                <button 
-                                  key={menu.id}
-                                  onClick={() => addMenu(menu.id)}
-                                  className="w-full flex items-center justify-between p-3 hover:bg-teal-50 dark:hover:bg-teal-500/10 rounded-xl transition-all group/item"
-                                >
-                                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover/item:text-teal-600">{menu.name}</p>
-                                  <Plus size={16} className="text-slate-300 group-hover/item:text-teal-500" />
-                                </button>
-                              )) : (
-                                <div className="p-4 text-center text-xs text-slate-500 italic">No menus found</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                      <div>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Associated Menu</p>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white">Menu ID: {currentCategory.menuID}</p>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {currentCategory.menus.map(menuId => {
-                        const menu = MOCK_MENUS.find(m => m.id === menuId);
-                        if (!menu) return null;
-                        return (
-                          <div
-                            key={menu.id}
-                            className="p-4 rounded-2xl border-2 border-teal-500 bg-teal-500/5 transition-all text-left group relative overflow-hidden"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="w-8 h-8 rounded-lg bg-teal-500 text-white flex items-center justify-center">
-                                <MenuIcon size={16} />
-                              </div>
-                              <button 
-                                onClick={() => removeMenu(menu.id)}
-                                className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                            <p className="text-sm font-bold text-slate-900 dark:text-white">{menu.name}</p>
-                          </div>
-                        );
-                      })}
-                      
-                      {currentCategory.menus.length === 0 && (
-                        <div className="col-span-full py-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center text-center">
-                          <p className="text-sm text-slate-500 font-bold">No menus assigned</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Search and add menus above</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  )}
 
                   {/* Availability Schedule */}
                   <div className="space-y-6 pt-6 border-t border-slate-100 dark:border-slate-800">
