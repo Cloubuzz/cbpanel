@@ -1,8 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Plus, 
   Search, 
-  Filter, 
   Edit2, 
   Trash2, 
   Image as ImageIcon, 
@@ -20,7 +19,8 @@ import {
   Layers,
   Upload,
   RefreshCw,
-  GripVertical
+  GripVertical,
+  AlertCircle
 } from 'lucide-react';
 import {
   DndContext,
@@ -39,6 +39,9 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchMenuItems, type ApiMenuItem } from '../services/menuItemsApi';
 
 interface ModifierGroup {
   id: string;
@@ -61,7 +64,7 @@ interface MenuSize {
 interface MenuItem {
   id: string;
   name: string;
-  menu: string;
+  categoryID: number;
   category: string;
   remoteCode: string;
   description: string;
@@ -80,61 +83,36 @@ interface MenuItem {
   endTime: string;
   availableDays: string[];
   sizes: MenuSize[];
+  // raw API data preserved for future update
+  apiRaw?: ApiMenuItem;
 }
 
-const MOCK_ITEMS: MenuItem[] = [
-  {
-    id: '1',
-    name: 'Margherita Pizza',
-    menu: 'Main Menu',
-    category: 'Pizzas',
-    remoteCode: 'PIZ-001',
-    description: 'Classic tomato sauce, mozzarella, and fresh basil.',
-    order: 1,
-    image: 'https://images.unsplash.com/photo-1604068549290-dea0e4a305ca?auto=format&fit=crop&w=800&q=80',
-    serving: 2,
-    specialDealText: 'Buy 1 Get 1 Free',
-    timerEndTime: '12:00 AM',
-    newItemText: 'Fresh!',
-    tags: ['Vegetarian', 'Classic'],
-    isActive: true,
-    isSuggestive: true,
-    isNewItem: false,
-    showDescription: true,
-    startTime: '10:00 AM',
-    endTime: '11:00 PM',
-    availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-    sizes: [
-      { id: 's1', size: 'Small', price: 12, originalPrice: 15, pickupPrice: 10, originalDisplayPrice: 15, halfNHalf: false },
-      { id: 's2', size: 'Medium', price: 18, originalPrice: 22, pickupPrice: 15, originalDisplayPrice: 22, halfNHalf: true }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Pepperoni Feast',
-    menu: 'Main Menu',
-    category: 'Pizzas',
-    remoteCode: 'PIZ-002',
-    description: 'Double pepperoni with extra mozzarella cheese.',
-    order: 2,
-    image: 'https://images.unsplash.com/photo-1628840042765-356cda07504e?auto=format&fit=crop&w=800&q=80',
-    serving: 2,
-    specialDealText: '',
-    timerEndTime: '12:00 AM',
-    newItemText: 'Hot!',
-    tags: ['Meat', 'Spicy'],
-    isActive: true,
-    isSuggestive: false,
-    isNewItem: true,
-    showDescription: true,
-    startTime: '10:00 AM',
-    endTime: '11:00 PM',
-    availableDays: ['Friday', 'Saturday', 'Sunday'],
-    sizes: [
-      { id: 's3', size: 'Large', price: 25, originalPrice: 30, pickupPrice: 20, originalDisplayPrice: 30, halfNHalf: true }
-    ]
-  }
-];
+const mapApiMenuItem = (api: ApiMenuItem): MenuItem => ({
+  id: String(api.ID),
+  name: api.Name,
+  categoryID: api.CategoryID,
+  category: String(api.CategoryID),
+  remoteCode: api.RemoteCode || '',
+  description: api.Description || '',
+  order: api.Order,
+  image: api.ItemImage && api.IsItemImageActive
+    ? `https://adminapi.broadwaypizza.com.pk/images/items/${api.ItemImage}`
+    : '',
+  serving: parseInt(api.Serving || '0', 10) || 0,
+  specialDealText: api.SpecialDealText || '',
+  timerEndTime: api.ItemEndTime || '00:00',
+  newItemText: api.NewItemText || '',
+  tags: typeof api.Tags === 'string' && api.Tags ? api.Tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+  isActive: api.IsActive,
+  isSuggestive: api.IsSuggestive,
+  isNewItem: api.IsNewItem,
+  showDescription: api.ShowDescription,
+  startTime: api.startTime || '00:00',
+  endTime: api.endTime || '00:00',
+  availableDays: api.Days === 'All' ? DAYS : api.Days ? api.Days.split(',').map(d => d.trim()) : [],
+  sizes: [],
+  apiRaw: api,
+});
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -320,9 +298,16 @@ const SortableSizeItem: React.FC<SortableSizeItemProps> = ({ size, onUpdate, onR
 };
 
 export const MenuItems: React.FC = () => {
+  const token = useAppSelector(selectToken);
   const [isSaving, setIsSaving] = useState(false);
   const [view, setView] = useState<'list' | 'editor'>('list');
-  const [items, setItems] = useState<MenuItem[]>(MOCK_ITEMS);
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [filterOnlyActive, setFilterOnlyActive] = useState<boolean | undefined>(undefined);
+  const [filterCategoryId] = useState<number | undefined>(undefined);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
   const [currentItem, setCurrentItem] = useState<Partial<MenuItem> | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -331,6 +316,29 @@ export const MenuItems: React.FC = () => {
   const [activeSizeId, setActiveSizeId] = useState<string | null>(null);
   const [modifierSearch, setModifierSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadItems = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await fetchMenuItems(token, {
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        onlyActive: filterOnlyActive,
+        categoryId: filterCategoryId,
+      });
+      setItems(data.map(mapApiMenuItem));
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load menu items.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, currentPage, filterOnlyActive, filterCategoryId]);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -342,23 +350,23 @@ export const MenuItems: React.FC = () => {
   const handleCreateNew = () => {
     setCurrentItem({
       name: '',
-      menu: 'New Menu',
-      category: 'Eid Trending!',
+      categoryID: 0,
+      category: '',
       remoteCode: '',
       description: '',
       order: 0,
       image: '',
       serving: 1,
       specialDealText: '',
-      timerEndTime: '12:00 AM',
+      timerEndTime: '00:00',
       newItemText: '',
       tags: [],
       isActive: true,
       isSuggestive: false,
       isNewItem: false,
       showDescription: true,
-      startTime: '12:00 AM',
-      endTime: '12:00 AM',
+      startTime: '00:00',
+      endTime: '00:00',
       availableDays: DAYS,
       sizes: []
     });
@@ -571,7 +579,7 @@ export const MenuItems: React.FC = () => {
 
   const filteredItems = items.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    item.categoryID.toString().includes(searchQuery.toLowerCase())
   );
 
   if (view === 'list') {
@@ -589,12 +597,22 @@ export const MenuItems: React.FC = () => {
               </h1>
               <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">Manage your restaurant's digital menu and pricing</p>
             </div>
-            <button 
-              onClick={handleCreateNew}
-              className="flex items-center justify-center gap-2 px-6 py-4 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-500 transition-all shadow-xl shadow-teal-900/20 hover:-translate-y-1 active:scale-95"
-            >
-              <Plus size={20} /> Add New Item
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={loadItems}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-3 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-2xl font-bold border border-slate-200 dark:border-slate-800 hover:border-teal-500 transition-all disabled:opacity-50"
+                title="Refresh"
+              >
+                <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+              </button>
+              <button 
+                onClick={handleCreateNew}
+                className="flex items-center justify-center gap-2 px-6 py-4 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-500 transition-all shadow-xl shadow-teal-900/20 hover:-translate-y-1 active:scale-95"
+              >
+                <Plus size={20} /> Add New Item
+              </button>
+            </div>
           </div>
 
           {/* Filters & Search */}
@@ -603,20 +621,48 @@ export const MenuItems: React.FC = () => {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
               <input 
                 type="text" 
-                placeholder="Search by name or category..."
+                placeholder="Search by name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm focus:ring-2 focus:ring-teal-500 transition-all"
               />
             </div>
-            <button className="flex items-center justify-center gap-2 px-5 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl font-bold hover:bg-slate-200 transition-all">
-              <Filter size={18} /> Filters
-            </button>
+            <select
+              value={filterOnlyActive === undefined ? '' : String(filterOnlyActive)}
+              onChange={(e) => {
+                setFilterOnlyActive(e.target.value === '' ? undefined : e.target.value === 'true');
+                setCurrentPage(1);
+              }}
+              className="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 border-none outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option value="">All Status</option>
+              <option value="true">Active Only</option>
+              <option value="false">Inactive Only</option>
+            </select>
           </div>
+
+          {/* Error */}
+          {loadError && (
+            <div className="flex items-center gap-3 p-4 mb-6 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400">
+              <AlertCircle size={18} className="shrink-0" />
+              <p className="text-sm font-medium">{loadError}</p>
+            </div>
+          )}
 
           {/* Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {filteredItems.map(item => (
+            {isLoading ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 overflow-hidden animate-pulse">
+                  <div className="aspect-[16/10] bg-slate-100 dark:bg-slate-800" />
+                  <div className="p-6 space-y-3">
+                    <div className="h-3 w-20 bg-slate-100 dark:bg-slate-800 rounded" />
+                    <div className="h-5 w-40 bg-slate-100 dark:bg-slate-800 rounded" />
+                    <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded" />
+                  </div>
+                </div>
+              ))
+            ) : filteredItems.map(item => (
               <div 
                 key={item.id}
                 className="group bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-800 overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
@@ -654,23 +700,22 @@ export const MenuItems: React.FC = () => {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <span className="text-[10px] font-bold text-teal-500 uppercase tracking-widest">{item.category}</span>
+                      <span className="text-[10px] font-bold text-teal-500 uppercase tracking-widest">Cat #{item.categoryID}</span>
                       <h3 className="text-xl font-bold text-slate-900 dark:text-white mt-1">{item.name}</h3>
                     </div>
-                    <span className="text-lg font-bold text-teal-600 dark:text-teal-400">
-                      RS {item.sizes[0]?.price || 0}
-                    </span>
                   </div>
                   <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-6 leading-relaxed">
-                    {item.description}
+                    {item.description || <span className="italic">No description</span>}
                   </p>
                   <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                     <div className="flex items-center gap-3">
+                      {item.serving > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-slate-500 font-bold">
+                          <Users size={14} /> {item.serving} Servings
+                        </div>
+                      )}
                       <div className="flex items-center gap-1 text-xs text-slate-500 font-bold">
-                        <Users size={14} /> {item.serving} Servings
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-slate-500 font-bold">
-                        <Layers size={14} /> {item.sizes.length} Sizes
+                        <Tag size={14} /> Order #{item.order}
                       </div>
                     </div>
                     <div className="flex -space-x-2">
@@ -690,6 +735,26 @@ export const MenuItems: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {/* Pagination */}
+          {!isLoading && items.length === PAGE_SIZE && (
+            <div className="flex items-center justify-center gap-4 mt-10">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-slate-600 dark:text-slate-300 hover:border-teal-500 transition-all disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-sm font-bold text-slate-500">Page {currentPage}</span>
+              <button
+                onClick={() => setCurrentPage(p => p + 1)}
+                className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-slate-600 dark:text-slate-300 hover:border-teal-500 transition-all"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -772,18 +837,7 @@ export const MenuItems: React.FC = () => {
                     className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-teal-500 rounded-2xl px-4 py-3 text-sm transition-all outline-none"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Menu</label>
-                  <select 
-                    value={currentItem?.menu}
-                    onChange={(e) => setCurrentItem({...currentItem, menu: e.target.value})}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-teal-500 rounded-2xl px-4 py-3 text-sm transition-all outline-none appearance-none"
-                  >
-                    <option value="Main Menu">Main Menu</option>
-                    <option value="New Menu">New Menu</option>
-                    <option value="Breakfast">Breakfast</option>
-                  </select>
-                </div>
+
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Category</label>
                   <select 
