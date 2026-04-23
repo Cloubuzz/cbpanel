@@ -19,11 +19,11 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
-interface Modifier {
-  id: string;
-  name: string;
-  price: number;
-}
+// interface Modifier {
+//   id: string;
+//   name: string;
+//   price: number;
+// }
 
 interface Size {
   id: string;
