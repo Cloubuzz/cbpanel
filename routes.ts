@@ -53,6 +53,7 @@ const STATIC_ADMIN_PATHS = new Set<string>([
   "/admin/banners",
   "/admin/vouchers",
   "/admin/discounts",
+  "/admin/blogs",
   "/admin/outlets",
   "/admin/outlets/new",
   "/admin/reports",
@@ -97,6 +98,8 @@ export const getViewFromPath = (pathname: string): View => {
   if (normalized === "/admin/banners") return "banners";
   if (normalized === "/admin/vouchers") return "vouchers";
   if (normalized === "/admin/discounts") return "discounts";
+  if (normalized === "/admin/blogs" || normalized.startsWith("/admin/blogs/"))
+    return "blogs";
   if (
     normalized === "/admin/outlets" ||
     normalized.startsWith("/admin/outlets/")
@@ -132,6 +135,10 @@ export const normalizeLandingPath = (landingPage?: string | null): string => {
   }
 
   if (normalized.startsWith("/admin/reports/")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("/admin/blogs/")) {
     return normalized;
   }
 

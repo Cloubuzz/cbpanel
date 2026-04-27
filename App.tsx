@@ -25,6 +25,8 @@ import { ReportDetail } from "./pages/ReportDetail";
 import { OutletManager } from "./pages/OutletManager";
 import { OutletDetail } from "./pages/OutletDetail";
 import { HelpDesk } from "./pages/HelpDesk";
+import { Blogs } from "./pages/Blogs";
+import { BlogDetail } from "./pages/BlogDetail";
 import { View } from "./types";
 import { Search, Bell, HelpCircle, Zap, Menu as MenuIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -72,6 +74,11 @@ const OutletDetailRoute: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   return <OutletDetail outletId={outletId} onBack={onBack} />;
 };
 
+const BlogDetailRoute: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const { blogId } = useParams<{ blogId: string }>();
+  return <BlogDetail id={blogId} onBack={onBack} />;
+};
+
 const App: React.FC = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -115,6 +122,7 @@ const App: React.FC = () => {
   const goToAutomationsList = () => navigate("/admin/automations");
   const goToOutletsList = () => navigate("/admin/outlets");
   const goToReportsList = () => navigate("/admin/reports");
+  const goToBlogsList = () => navigate("/admin/blogs");
 
   if (!isAuthenticated) {
     return (
@@ -311,6 +319,23 @@ const App: React.FC = () => {
                 <Route path="/admin/banners" element={<Banners />} />
                 <Route path="/admin/vouchers" element={<Vouchers />} />
                 <Route path="/admin/discounts" element={<Discounts />} />
+                <Route
+                  path="/admin/blogs"
+                  element={
+                    <Blogs
+                      onAddBlog={() => navigate("/admin/blogs/new")}
+                      onEditBlog={(id) => navigate(`/admin/blogs/${id}`)}
+                    />
+                  }
+                />
+                <Route
+                  path="/admin/blogs/new"
+                  element={<BlogDetail onBack={goToBlogsList} />}
+                />
+                <Route
+                  path="/admin/blogs/:blogId"
+                  element={<BlogDetailRoute onBack={goToBlogsList} />}
+                />
                 <Route path="/admin/pos" element={<Pos />} />
 
                 <Route
