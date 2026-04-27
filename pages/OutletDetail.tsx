@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -24,6 +24,9 @@ import {
   Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchOutletDetail } from '../services/outletsApi';
 
 interface DeliveryArea {
   id: string;
@@ -41,13 +44,14 @@ interface OutletDetailProps {
 
 export const OutletDetail: React.FC<OutletDetailProps> = ({ onBack, outletId }) => {
   const isEdit = !!outletId;
+  const token = useAppSelector(selectToken);
   
   // Form State
   const [isSaving, setIsSaving] = useState(false);
-  const [name, setName] = useState(isEdit ? 'Downtown Central' : '');
-  const [address, setAddress] = useState(isEdit ? '123 Main St, City Center' : '');
-  const [phone, setPhone] = useState(isEdit ? '+1 234 567 8901' : '');
-  const [email, setEmail] = useState(isEdit ? 'downtown@restaurant.com' : '');
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
   
@@ -68,6 +72,26 @@ export const OutletDetail: React.FC<OutletDetailProps> = ({ onBack, outletId }) 
     { days: 'Sat - Sun', openTime: '10:00 AM', closeTime: '12:00 AM' }
   ]);
   const [isEditingHours, setIsEditingHours] = useState(false);
+
+  useEffect(() => {
+    const loadOutlet = async () => {
+      if (!isEdit || !token || !outletId) return;
+
+      try {
+        const outlet = await fetchOutletDetail(token, outletId);
+        setName(outlet.name || '');
+        setAddress(outlet.address || '');
+        setPhone(outlet.phone || '');
+        setEmail(outlet.email || '');
+        setIsActive(outlet.OutletStatus === 'In Business');
+        setIsAcceptingOrders(outlet.CloseReason === 'AutoAcceptanceOpen' || outlet.OutletStatus === 'In Business');
+      } catch (error) {
+        console.error('Failed to load outlet detail:', error);
+      }
+    };
+
+    loadOutlet();
+  }, [isEdit, token, outletId]);
 
   const DAYS_OPTIONS = [
     'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',

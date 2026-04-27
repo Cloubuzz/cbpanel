@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Store, 
   MapPin, 
@@ -16,6 +16,9 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchOutletList, type OutletListItem } from '../services/outletsApi';
 
 interface Outlet {
   id: string;
@@ -91,16 +94,53 @@ const mockOutlets: Outlet[] = [
   }
 ];
 
+const fallbackOutletById = new Map<string, Outlet>(mockOutlets.map((outlet) => [outlet.id, outlet]));
+
+const mapApiOutlet = (outlet: OutletListItem): Outlet => {
+  const fallback = fallbackOutletById.get(String(outlet.id));
+  return {
+    id: String(outlet.id),
+    name: outlet.name,
+    address: fallback?.address ?? `${outlet.city} Branch`,
+    phone: fallback?.phone ?? '+1 234 567 8900',
+    isOpen: outlet.closeReason !== 'AutoAcceptanceClose',
+    status: outlet.closeReason === 'AutoAcceptanceClose' ? 'CLOSED' : 'OPEN',
+    stats: fallback?.stats ?? {
+      dailyRevenue: 0,
+      activeOrders: 0,
+      avgPrepTime: outlet.deliveryTime,
+    },
+    lastUpdate: fallback?.lastUpdate ?? `${outlet.deliveryTime} mins ago`,
+  };
+};
+
 interface OutletManagerProps {
   onAddOutlet: () => void;
   onEditOutlet: (id: string) => void;
 }
 
 export const OutletManager: React.FC<OutletManagerProps> = ({ onAddOutlet, onEditOutlet }) => {
+  const token = useAppSelector(selectToken);
   const [outlets, setOutlets] = useState<Outlet[]>(mockOutlets);
   const [closingOutletId, setClosingOutletId] = useState<string | null>(null);
   const [closeMinutes, setCloseMinutes] = useState(30);
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const loadOutlets = async () => {
+      if (!token) return;
+
+      try {
+        const apiOutlets = await fetchOutletList(token);
+        setOutlets(apiOutlets.map(mapApiOutlet));
+      } catch (error) {
+        console.error('Failed to load outlets:', error);
+        setOutlets(mockOutlets);
+      }
+    };
+
+    loadOutlets();
+  }, [token]);
 
   const handleToggleStatus = (id: string, currentStatus: boolean) => {
     if (currentStatus) {
