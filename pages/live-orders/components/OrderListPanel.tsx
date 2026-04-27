@@ -36,8 +36,8 @@ export const OrderListPanel: React.FC<Props> = ({
         </h2>
         <div className="flex items-center gap-2">
           {!isLoading && (
-            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full">
-              {filteredOrders.length}
+            <span className="px-2 py-0.5 bg-rose-500 text-white text-[10px] font-bold rounded-full animate-pulse">
+              {filteredOrders.length} NEW
             </span>
           )}
           <button

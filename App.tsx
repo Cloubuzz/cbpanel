@@ -27,6 +27,7 @@ import { OutletDetail } from "./pages/OutletDetail";
 import { HelpDesk } from "./pages/HelpDesk";
 import { View } from "./types";
 import { Search, Bell, HelpCircle, Zap, Menu as MenuIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Navigate,
   Route,
@@ -244,107 +245,118 @@ const App: React.FC = () => {
               : "bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900"
           }`}
         >
-          <Routes>
-            <Route
-              path="/admin/launchpad"
-              element={
-                <Launchpad
-                  onSelectView={handleSidebarNavigation}
-                  onLogout={handleLogout}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="h-full w-full"
+            >
+              <Routes location={location}>
+                <Route
+                  path="/admin/launchpad"
+                  element={
+                    <Launchpad
+                      onSelectView={handleSidebarNavigation}
+                      onLogout={handleLogout}
+                    />
+                  }
                 />
-              }
-            />
 
-            <Route
-              path="/"
-              element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
-            />
-            <Route
-              path="/admin"
-              element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
-            />
-
-            <Route path="/admin/dashboard" element={<Dashboard />} />
-            <Route path="/admin/chat" element={<Chat />} />
-
-            <Route
-              path="/admin/automations"
-              element={
-                <AutomationManager
-                  onAdd={() => navigate("/admin/automations/new")}
-                  onEdit={(id) => navigate(`/admin/automations/${id}`)}
+                <Route
+                  path="/"
+                  element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
                 />
-              }
-            />
-            <Route
-              path="/admin/automations/new"
-              element={<AutomationDetail onBack={goToAutomationsList} />}
-            />
-            <Route
-              path="/admin/automations/:automationId"
-              element={<AutomationDetailRoute onBack={goToAutomationsList} />}
-            />
-
-            <Route path="/admin/email-manager" element={<EmailManager />} />
-            <Route
-              path="/admin/whatsapp-manager"
-              element={<WhatsAppManager />}
-            />
-            <Route path="/admin/campaigns" element={<Campaigns />} />
-            <Route path="/admin/segments" element={<Segments />} />
-            <Route path="/admin/settings" element={<Settings />} />
-            <Route path="/admin/live-orders" element={<LiveOrders />} />
-            <Route path="/admin/menu-items" element={<MenuItems />} />
-            <Route path="/admin/modifiers" element={<Modifiers />} />
-            <Route path="/admin/menus" element={<Menus />} />
-            <Route path="/admin/categories" element={<Categories />} />
-            <Route path="/admin/banners" element={<Banners />} />
-            <Route path="/admin/vouchers" element={<Vouchers />} />
-            <Route path="/admin/discounts" element={<Discounts />} />
-            <Route path="/admin/pos" element={<Pos />} />
-
-            <Route
-              path="/admin/outlets"
-              element={
-                <OutletManager
-                  onAddOutlet={() => navigate("/admin/outlets/new")}
-                  onEditOutlet={(id) => navigate(`/admin/outlets/${id}`)}
+                <Route
+                  path="/admin"
+                  element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
                 />
-              }
-            />
-            <Route
-              path="/admin/outlets/new"
-              element={<OutletDetail onBack={goToOutletsList} />}
-            />
-            <Route
-              path="/admin/outlets/:outletId"
-              element={<OutletDetailRoute onBack={goToOutletsList} />}
-            />
 
-            <Route
-              path="/admin/reports"
-              element={
-                <Reports
-                  onSelectReport={() => navigate("/admin/reports/detail")}
+                <Route path="/admin/dashboard" element={<Dashboard />} />
+                <Route path="/admin/chat" element={<Chat />} />
+
+                <Route
+                  path="/admin/automations"
+                  element={
+                    <AutomationManager
+                      onAdd={() => navigate("/admin/automations/new")}
+                      onEdit={(id) => navigate(`/admin/automations/${id}`)}
+                    />
+                  }
                 />
-              }
-            />
-            <Route
-              path="/admin/reports/detail"
-              element={<ReportDetail onBack={goToReportsList} />}
-            />
+                <Route
+                  path="/admin/automations/new"
+                  element={<AutomationDetail onBack={goToAutomationsList} />}
+                />
+                <Route
+                  path="/admin/automations/:automationId"
+                  element={<AutomationDetailRoute onBack={goToAutomationsList} />}
+                />
 
-            <Route path="/admin/help-desk" element={<HelpDesk />} />
+                <Route path="/admin/email-manager" element={<EmailManager />} />
+                <Route
+                  path="/admin/whatsapp-manager"
+                  element={<WhatsAppManager />}
+                />
+                <Route path="/admin/campaigns" element={<Campaigns />} />
+                <Route path="/admin/segments" element={<Segments />} />
+                <Route path="/admin/settings" element={<Settings />} />
+                <Route path="/admin/live-orders" element={<LiveOrders />} />
+                <Route path="/admin/menu-items" element={<MenuItems />} />
+                <Route path="/admin/modifiers" element={<Modifiers />} />
+                <Route path="/admin/menus" element={<Menus />} />
+                <Route path="/admin/categories" element={<Categories />} />
+                <Route path="/admin/banners" element={<Banners />} />
+                <Route path="/admin/vouchers" element={<Vouchers />} />
+                <Route path="/admin/discounts" element={<Discounts />} />
+                <Route path="/admin/pos" element={<Pos />} />
 
-            <Route
-              path={LOGIN_PATH}
-              element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
-            />
-            <Route
-              path="*"
-              element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
-            />
-          </Routes>
+                <Route
+                  path="/admin/outlets"
+                  element={
+                    <OutletManager
+                      onAddOutlet={() => navigate("/admin/outlets/new")}
+                      onEditOutlet={(id) => navigate(`/admin/outlets/${id}`)}
+                    />
+                  }
+                />
+                <Route
+                  path="/admin/outlets/new"
+                  element={<OutletDetail onBack={goToOutletsList} />}
+                />
+                <Route
+                  path="/admin/outlets/:outletId"
+                  element={<OutletDetailRoute onBack={goToOutletsList} />}
+                />
+
+                <Route
+                  path="/admin/reports"
+                  element={
+                    <Reports
+                      onSelectReport={() => navigate("/admin/reports/detail")}
+                    />
+                  }
+                />
+                <Route
+                  path="/admin/reports/detail"
+                  element={<ReportDetail onBack={goToReportsList} />}
+                />
+
+                <Route path="/admin/help-desk" element={<HelpDesk />} />
+
+                <Route
+                  path={LOGIN_PATH}
+                  element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
+                />
+                <Route
+                  path="*"
+                  element={<Navigate to={DEFAULT_AUTHENTICATED_PATH} replace />}
+                />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>
