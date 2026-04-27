@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Plus, 
   Search, 
@@ -30,6 +30,9 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchToppingTemplates } from '../services/menuItemsApi';
 
 interface ModifierItem {
   id: string;
@@ -159,12 +162,45 @@ const SortableModifierItem: React.FC<SortableModifierItemProps> = ({ item, onRem
 };
 
 export const Modifiers: React.FC = () => {
+  const token = useAppSelector(selectToken);
   const [isSaving, setIsSaving] = useState(false);
   const [groups, setGroups] = useState<ModifierGroup[]>(INITIAL_GROUPS);
   const [isEditing, setIsEditing] = useState(false);
   const [currentGroup, setCurrentGroup] = useState<ModifierGroup | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [productSearch, setProductSearch] = useState('');
+
+  useEffect(() => {
+    const loadTemplates = async () => {
+      if (!token) return;
+
+      try {
+        const templates = await fetchToppingTemplates(token);
+        const mappedGroups = templates.map((template, index) => {
+          const name = template.Name.trim();
+          return {
+            id: name || `template-${index}`,
+            name: name || 'Untitled Template',
+            description: 'Imported from topping template API',
+            selectionType: 'multi',
+            isRequired: false,
+            minSelection: 0,
+            maxSelection: 99,
+            items: [],
+            isActive: true,
+          } as ModifierGroup;
+        });
+
+        if (mappedGroups.length > 0) {
+          setGroups(mappedGroups);
+        }
+      } catch (error) {
+        console.error('Failed to load topping templates:', error);
+      }
+    };
+
+    loadTemplates();
+  }, [token]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),

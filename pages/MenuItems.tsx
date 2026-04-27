@@ -41,7 +41,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAppSelector } from '../store/hooks';
 import { selectToken } from '../store/selectors/appSelectors';
-import { fetchMenuItems, type ApiMenuItem } from '../services/menuItemsApi';
+import { fetchMenuItems, fetchToppingTemplates, type ApiMenuItem } from '../services/menuItemsApi';
 
 interface ModifierGroup {
   id: string;
@@ -116,7 +116,7 @@ const mapApiMenuItem = (api: ApiMenuItem): MenuItem => ({
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-const MOCK_MODIFIER_GROUPS: ModifierGroup[] = [
+const DEFAULT_MODIFIER_GROUPS: ModifierGroup[] = [
   { id: 'mg1', name: 'Extra Toppings', minSelection: 0, maxSelection: 10 },
   { id: 'mg2', name: 'Crust Type', minSelection: 1, maxSelection: 1 },
   { id: 'mg3', name: 'Dips', minSelection: 0, maxSelection: 5 },
@@ -315,6 +315,7 @@ export const MenuItems: React.FC = () => {
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
   const [activeSizeId, setActiveSizeId] = useState<string | null>(null);
   const [modifierSearch, setModifierSearch] = useState('');
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>(DEFAULT_MODIFIER_GROUPS);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadItems = useCallback(async () => {
@@ -339,6 +340,32 @@ export const MenuItems: React.FC = () => {
   useEffect(() => {
     loadItems();
   }, [loadItems]);
+
+  useEffect(() => {
+    const loadModifierGroups = async () => {
+      if (!token) return;
+
+      try {
+        const templates = await fetchToppingTemplates(token);
+        const mappedGroups = templates.map((template, index) => {
+          const name = template.Name.trim();
+          return {
+            id: name || `template-${index}`,
+            name: name || 'Untitled Template',
+            minSelection: 0,
+            maxSelection: 99,
+          };
+        }).filter((group) => Boolean(group.name));
+
+        setModifierGroups(mappedGroups.length > 0 ? mappedGroups : DEFAULT_MODIFIER_GROUPS);
+      } catch (error) {
+        console.error('Failed to load topping templates:', error);
+        setModifierGroups(DEFAULT_MODIFIER_GROUPS);
+      }
+    };
+
+    loadModifierGroups();
+  }, [token]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -1229,6 +1256,7 @@ export const MenuItems: React.FC = () => {
                 </div>
 
                 {/* Advanced Dropdown for Available Modifiers */}
+                {/* Advanced Dropdown for Available Modifiers */}
                 {modifierSearch && (
                   <div className="absolute top-full left-0 right-0 mt-3 bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-4 duration-300">
                     <div className="p-3 max-h-[350px] overflow-y-auto custom-scrollbar">
@@ -1236,7 +1264,7 @@ export const MenuItems: React.FC = () => {
                         <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Available to Add</h4>
                       </div>
                       <div className="space-y-1">
-                        {MOCK_MODIFIER_GROUPS
+                        {modifierGroups
                           .filter(group => !currentItem?.sizes?.find(s => s.id === activeSizeId)?.modifierGroups?.includes(group.id))
                           .filter(group => group.name.toLowerCase().includes(modifierSearch.toLowerCase()))
                           .map(group => (
@@ -1264,7 +1292,7 @@ export const MenuItems: React.FC = () => {
                               </div>
                             </button>
                           ))}
-                        {MOCK_MODIFIER_GROUPS
+                        {modifierGroups
                           .filter(group => !currentItem?.sizes?.find(s => s.id === activeSizeId)?.modifierGroups?.includes(group.id))
                           .filter(group => group.name.toLowerCase().includes(modifierSearch.toLowerCase())).length === 0 && (
                           <div className="p-8 text-center">
@@ -1303,7 +1331,7 @@ export const MenuItems: React.FC = () => {
                   >
                     <div className="space-y-3">
                       {currentItem?.sizes?.find(s => s.id === activeSizeId)?.modifierGroups?.map(groupId => {
-                        const group = MOCK_MODIFIER_GROUPS.find(g => g.id === groupId);
+                        const group = modifierGroups.find(g => g.id === groupId);
                         if (!group) return null;
                         return (
                           <SortableModifierItem 

@@ -55,6 +55,15 @@ export interface FetchMenuItemsOptions {
   categoryId?: number;
 }
 
+export interface ToppingTemplate {
+  Name: string;
+}
+
+interface ToppingTemplateApiResponse {
+  responseType: number;
+  data?: ToppingTemplate[];
+}
+
 const API_BASE_PATH = '/adminapi';
 
 export const fetchMenuItems = async (
@@ -82,6 +91,31 @@ export const fetchMenuItems = async (
 
   if (response.responseType !== 1 || !Array.isArray(response.data)) {
     throw new Error('Failed to fetch menu items.');
+  }
+
+  return response.data;
+};
+
+export const fetchToppingTemplates = async (
+  token: string,
+  onlyActive = true,
+): Promise<ToppingTemplate[]> => {
+  const params = new URLSearchParams();
+  params.set('onlyActive', String(onlyActive));
+
+  const response = await requestJson<ToppingTemplateApiResponse>(
+    `${API_BASE_PATH}/menu/toppingtemplate?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        accept: '*/*',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (response.responseType !== 1 || !Array.isArray(response.data)) {
+    throw new Error('Failed to fetch topping templates.');
   }
 
   return response.data;
