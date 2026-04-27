@@ -17,11 +17,12 @@ import { getStatusColor } from '../helpers';
 interface Props {
   selectedOrder: RawOrder;
   orderDetail: OrderDetail | null;
+  onPrint: () => void;
   onReject: () => void;
   onAccept: () => void;
 }
 
-export const OrderDetailHeader: React.FC<Props> = ({ selectedOrder, orderDetail, onReject, onAccept }) => (
+export const OrderDetailHeader: React.FC<Props> = ({ selectedOrder, orderDetail, onPrint, onReject, onAccept }) => (
   <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900/30 backdrop-blur-md sticky top-0 z-20">
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-teal-500 border border-teal-500/20">
@@ -55,6 +56,7 @@ export const OrderDetailHeader: React.FC<Props> = ({ selectedOrder, orderDetail,
 
     <div className="flex items-center gap-2">
       <button
+        onClick={onPrint}
         className="p-2 text-slate-400 hover:text-teal-500 hover:bg-teal-500/10 rounded-xl transition-all"
         title="Print Invoice"
       >

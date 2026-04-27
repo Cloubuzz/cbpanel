@@ -176,6 +176,94 @@ export const LiveOrders: React.FC = () => {
     setOutletSearch('');
   };
 
+  const handlePrint = useCallback(() => {
+    if (!selectedOrder) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const orderType = orderDetail?.order.OrderType || selectedOrder.OrderType;
+    const customerName = (orderDetail?.order.CustomerName || selectedOrder.CustomerName || '').toUpperCase();
+    const customerPhone = orderDetail?.order.CustomerPhone || selectedOrder.CustomerMobile || '';
+    const deliveryAddress = orderDetail?.order.Address
+      ? `${orderDetail.order.Address}${orderDetail.order.Area ? `, ${orderDetail.order.Area}` : ''}`
+      : '';
+    const items = orderDetail?.items || [];
+    const subTotal = orderDetail?.order.SubTotal ?? selectedOrder.OrderAmount;
+    const fee = orderDetail?.order.DeliveryFee ?? 0;
+    const discount = orderDetail?.order.Discount ?? 0;
+    const grandTotal = orderDetail?.order.GrandTotal ?? selectedOrder.OrderAmount;
+
+    const content = `
+      <html>
+        <head>
+          <title>Order Invoice #${selectedOrder.ID}</title>
+          <style>
+            body { font-family: 'Courier New', Courier, monospace; width: 300px; padding: 20px; color: #000; background: #fff; }
+            .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .order-info { margin-bottom: 15px; font-size: 11px; }
+            .section { border-top: 1px dashed #000; padding: 8px 0; margin-top: 8px; }
+            .item { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px; }
+            .footer { text-align: center; border-top: 1px dashed #000; padding-top: 10px; margin-top: 20px; font-size: 9px; }
+            .bold { font-weight: bold; }
+            .big { font-size: 14px; }
+          </style>
+        </head>
+        <body onload="window.print(); window.close();">
+          <div class="header">
+            <h2 style="margin: 0; font-size: 18px;">BROADWAY PIZZA</h2>
+            <p style="margin: 3px 0; font-size: 10px;">ORDER #${selectedOrder.ID}</p>
+            <p style="margin: 0; font-size: 11px; font-weight: bold;">*** ${String(orderType).toUpperCase()} ORDER ***</p>
+          </div>
+
+          <div class="order-info">
+            <div class="bold">CUST: ${customerName || 'WALK-IN'}</div>
+            <div>PHONE: ${customerPhone || 'N/A'}</div>
+            ${String(orderType).toLowerCase().includes('delivery') && deliveryAddress ? `
+              <div style="margin-top: 5px; border-top: 1px dotted #000; padding-top: 5px;">
+                <span class="bold">DELIVERY ADDRESS:</span><br/>
+                ${deliveryAddress.toUpperCase()}
+              </div>
+            ` : ''}
+            <div style="margin-top: 8px; font-size: 9px; opacity: 0.7;">DATE: ${new Date().toLocaleString()}</div>
+          </div>
+
+          <div class="section">
+            ${items.length > 0 ? items.map(item => `
+              <div class="item">
+                <span class="bold">${item.Qty}x ${item.Item}</span>
+                <span>RS ${item.Total}</span>
+              </div>
+              ${(item.Description || item.Size) ? `<div style="font-size: 9px; margin-left: 10px; margin-bottom: 5px; opacity: 0.8;">- ${[item.Size, item.Description].filter(Boolean).join(' | ')}</div>` : ''}
+              ${item.Options?.map(opt => `<div style="font-size: 9px; margin-left: 10px; margin-bottom: 2px; opacity: 0.8;">- ${opt.OptionItem}${opt.Quantity > 1 ? ` x${opt.Quantity}` : ''}</div>`).join('') || ''}
+            `).join('') : `
+              <div class="item">
+                <span class="bold">1x Order Total</span>
+                <span>RS ${selectedOrder.OrderAmount}</span>
+              </div>
+            `}
+          </div>
+
+          <div class="section">
+            <div class="item"><span>SUBTOTAL</span> <span>RS ${subTotal}</span></div>
+            <div class="item"><span>DELIVERY</span> <span>RS ${fee}</span></div>
+            <div class="item"><span>DISCOUNT</span> <span>- RS ${discount}</span></div>
+            <div class="item bold big" style="margin-top: 5px; border-top: 1px solid #000; padding-top: 5px;">
+              <span>TOTAL</span> <span>RS ${grandTotal}</span>
+            </div>
+          </div>
+
+          <div class="footer">
+            <p style="letter-spacing: 2px;">*** THANK YOU! ***</p>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(content);
+    printWindow.document.close();
+  }, [selectedOrder, orderDetail]);
+
   return (
     <div className="flex h-full bg-slate-50 dark:bg-slate-950 overflow-hidden font-sans">
       <StatusRail
@@ -209,6 +297,7 @@ export const LiveOrders: React.FC = () => {
           <>
             <OrderDetailHeader
               selectedOrder={selectedOrder}
+              onPrint={handlePrint}
               orderDetail={orderDetail}
               onReject={() => setShowConfirmModal({ show: true, type: 'Reject' })}
               onAccept={() => setShowConfirmModal({ show: true, type: 'Accept' })}
