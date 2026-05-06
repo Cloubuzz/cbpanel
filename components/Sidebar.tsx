@@ -3,6 +3,7 @@ import { LogOut, ChevronDown, X, Zap } from "lucide-react";
 import { View } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 import { NAV_ITEMS } from "../constants";
+import { AuthUser } from "../services/authApi";
 
 interface SidebarProps {
   currentView: View;
@@ -10,6 +11,7 @@ interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   onClose: () => void;
+  currentUser: AuthUser | null;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -18,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   isOpen,
   onClose,
+  currentUser,
 }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
@@ -186,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-blue-500 p-0.5">
                 <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center overflow-hidden">
                   <img
-                    src="https://picsum.photos/seed/admin/100/100"
+                    src={`https://picsum.photos/seed/${currentUser?.userId || 'admin'}/100/100`}
                     alt="User"
                     className="w-full h-full object-cover"
                   />
@@ -194,10 +197,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-white truncate">
-                  Alex Cloud
+                  {currentUser?.name || "User"}
                 </p>
                 <p className="text-[10px] text-teal-500 font-bold uppercase tracking-wider">
-                  Super Admin
+                  {currentUser?.userType || "Admin"}
                 </p>
               </div>
             </div>

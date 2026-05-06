@@ -165,6 +165,7 @@ const App: React.FC = () => {
           onLogout={handleLogout}
           isOpen={isSidebarOpen}
           onClose={() => dispatch(setSidebarOpen(false))}
+          currentUser={currentUser}
         />
       )}
 
@@ -269,6 +270,7 @@ const App: React.FC = () => {
                     <Launchpad
                       onSelectView={handleSidebarNavigation}
                       onLogout={handleLogout}
+                      currentUser={currentUser}
                     />
                   }
                 />
@@ -360,12 +362,14 @@ const App: React.FC = () => {
                   path="/admin/reports"
                   element={
                     <Reports
-                      onSelectReport={() => navigate("/admin/reports/detail")}
+                      onSelectReport={(slug) =>
+                        navigate(`/admin/reports/detail/${encodeURIComponent(slug)}`)
+                      }
                     />
                   }
                 />
                 <Route
-                  path="/admin/reports/detail"
+                  path="/admin/reports/detail/:slug"
                   element={<ReportDetail onBack={goToReportsList} />}
                 />
 

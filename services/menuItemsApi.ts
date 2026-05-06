@@ -64,7 +64,46 @@ interface ToppingTemplateApiResponse {
   data?: ToppingTemplate[];
 }
 
+export interface ApiToppingItem {
+  ID: number;
+  Name: string;
+  Description: string;
+  Required: boolean;
+  MultiSelect: boolean;
+  menuItemID: number;
+  CreatedDate: string;
+  ModifiedDate: string;
+  Order: number;
+  FoodPandaID: number | Record<string, never>;
+  FoodPandaTable: Record<string, never>;
+  SizeID: number;
+  SizeName: string | Record<string, never>;
+  Price: string;
+  ImageURL: string;
+  IsActive: boolean;
+  OriginalPrice: number;
+  SetasItemName: boolean;
+}
+
+interface ToppingItemsApiResponse {
+  responseType: number;
+  data?: ApiToppingItem[];
+}
+
 const API_BASE_PATH = '/adminapi';
+
+const uniqueToppingNames = (items?: Array<{ Name?: string }>): ToppingTemplate[] => {
+  const names = new Set<string>();
+
+  items?.forEach((item) => {
+    const name = item.Name?.trim();
+    if (name) {
+      names.add(name);
+    }
+  });
+
+  return Array.from(names).map((Name) => ({ Name }));
+};
 
 export const fetchMenuItems = async (
   token: string,
@@ -116,6 +155,28 @@ export const fetchToppingTemplates = async (
 
   if (response.responseType !== 1 || !Array.isArray(response.data)) {
     throw new Error('Failed to fetch topping templates.');
+  }
+
+  return uniqueToppingNames(response.data);
+};
+
+export const fetchToppingItems = async (
+  token: string,
+  toppingName: string,
+): Promise<ApiToppingItem[]> => {
+  const response = await requestJson<ToppingItemsApiResponse>(
+    `${API_BASE_PATH}/topping/items/${encodeURIComponent(toppingName)}`,
+    {
+      method: 'GET',
+      headers: {
+        accept: '*/*',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (response.responseType !== 1 || !Array.isArray(response.data)) {
+    throw new Error('Failed to fetch topping items.');
   }
 
   return response.data;

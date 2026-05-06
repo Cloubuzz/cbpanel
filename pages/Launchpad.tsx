@@ -3,6 +3,7 @@ import { Search, LogOut, Bell, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { NAV_ITEMS } from "../constants";
 import { View } from "../types";
+import { AuthUser } from "../services/authApi";
 
 interface ModuleItem {
   id: View;
@@ -14,11 +15,13 @@ interface ModuleItem {
 interface LaunchpadProps {
   onSelectView: (view: View) => void;
   onLogout?: () => void;
+  currentUser?: AuthUser | null;
 }
 
 export const Launchpad: React.FC<LaunchpadProps> = ({
   onSelectView,
   onLogout,
+  currentUser,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -146,12 +149,22 @@ export const Launchpad: React.FC<LaunchpadProps> = ({
             <div className="h-8 w-px bg-white/10 mx-2"></div>
 
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-white">Alex C.</p>
-              <p className="text-[10px] text-white/40">Super Admin</p>
+              <p className="text-xs font-bold text-white">
+                {currentUser?.name
+                  ? currentUser.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                  : "User"}
+              </p>
+              <p className="text-[10px] text-white/40">
+                {currentUser?.userType || "Admin"}
+              </p>
             </div>
             <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden relative group cursor-pointer">
               <img
-                src="https://picsum.photos/seed/admin/100/100"
+                src={`https://picsum.photos/seed/${currentUser?.userId || 'admin'}/100/100`}
                 alt="Profile"
                 className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                 referrerPolicy="no-referrer"

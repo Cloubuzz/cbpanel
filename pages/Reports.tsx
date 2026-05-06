@@ -1,97 +1,32 @@
 import React from 'react';
 import { 
   Download, 
+  AlertCircle,
+  Loader2,
   Search, 
   ChevronRight
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchReports, type ApiReportSummary } from '../services/reportsApi';
 
-interface Report {
+interface ReportCard {
   id: string;
   title: string;
   description: string;
-  category: 'Sales' | 'Customers' | 'Operations' | 'Marketing';
+  category: string;
   color: string;
+  apiReport: ApiReportSummary;
 }
-
-const REPORTS: Report[] = [
-  {
-    id: 'sales-summary',
-    title: 'Sales Summary',
-    description: 'Comprehensive overview of daily, weekly, and monthly revenue trends.',
-    category: 'Sales',
-    color: 'teal'
-  },
-  {
-    id: 'top-selling',
-    title: 'Top Selling Items',
-    description: 'Identify your most popular dishes and drinks by volume and revenue.',
-    category: 'Sales',
-    color: 'blue'
-  },
-  {
-    id: 'category-performance',
-    title: 'Category Performance',
-    description: 'Analyze which menu categories are driving the most growth.',
-    category: 'Sales',
-    color: 'indigo'
-  },
-  {
-    id: 'peak-hours',
-    title: 'Peak Hours Report',
-    description: 'Discover your busiest times to optimize staffing and kitchen prep.',
-    category: 'Operations',
-    color: 'orange'
-  },
-  {
-    id: 'order-source',
-    title: 'Order Source Analysis',
-    description: 'Compare performance between Web, App, and Third-party platforms.',
-    category: 'Operations',
-    color: 'purple'
-  },
-  {
-    id: 'customer-loyalty',
-    title: 'Loyalty & Retention',
-    description: 'Track repeat customers and the effectiveness of your loyalty program.',
-    category: 'Customers',
-    color: 'pink'
-  },
-  {
-    id: 'delivery-trends',
-    title: 'Delivery vs Pickup',
-    description: 'Analyze trends in fulfillment methods and delivery zone performance.',
-    category: 'Operations',
-    color: 'cyan'
-  },
-  {
-    id: 'modifier-usage',
-    title: 'Modifier Usage',
-    description: 'See which add-ons and customizations are most frequently ordered.',
-    category: 'Sales',
-    color: 'emerald'
-  },
-  {
-    id: 'promotion-impact',
-    title: 'Promotion Impact',
-    description: 'Measure the ROI of your discounts and marketing campaigns.',
-    category: 'Marketing',
-    color: 'amber'
-  },
-  {
-    id: 'refund-summary',
-    title: 'Refund & Cancellations',
-    description: 'Monitor order issues and identify patterns in lost revenue.',
-    category: 'Operations',
-    color: 'rose'
-  }
-];
 
 const CATEGORY_COLORS: Record<string, { bg: string, text: string, accent: string }> = {
   Sales: { bg: 'bg-teal-500/10', text: 'text-teal-500', accent: 'bg-teal-500/5' },
   Customers: { bg: 'bg-pink-500/10', text: 'text-pink-500', accent: 'bg-pink-500/5' },
   Operations: { bg: 'bg-blue-500/10', text: 'text-blue-500', accent: 'bg-blue-500/5' },
   Marketing: { bg: 'bg-amber-500/10', text: 'text-amber-500', accent: 'bg-amber-500/5' },
+  Payments: { bg: 'bg-violet-500/10', text: 'text-violet-500', accent: 'bg-violet-500/5' },
+  Menu: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', accent: 'bg-emerald-500/5' },
 };
 
 const REPORT_COLORS: Record<string, { bg: string, text: string, accent: string }> = {
@@ -105,6 +40,51 @@ const REPORT_COLORS: Record<string, { bg: string, text: string, accent: string }
   emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', accent: 'bg-emerald-500/5' },
   amber: { bg: 'bg-amber-500/10', text: 'text-amber-500', accent: 'bg-amber-500/5' },
   rose: { bg: 'bg-rose-500/10', text: 'text-rose-500', accent: 'bg-rose-500/5' },
+  violet: { bg: 'bg-violet-500/10', text: 'text-violet-500', accent: 'bg-violet-500/5' },
+};
+
+const inferCategory = (reportName: string, slug: string) => {
+  const value = `${reportName} ${slug}`.toLowerCase();
+
+  if (value.includes('customer')) return 'Customers';
+  if (value.includes('payment') || value.includes('card')) return 'Payments';
+  if (value.includes('menu') || value.includes('deal') || value.includes('modifier')) return 'Menu';
+  if (value.includes('campaign') || value.includes('promotion') || value.includes('marketing')) return 'Marketing';
+  if (value.includes('sale') || value.includes('order') || value.includes('revenue') || value.includes('comprison')) return 'Sales';
+  return 'Operations';
+};
+
+const inferColor = (category: string) => {
+  switch (category) {
+    case 'Customers':
+      return 'pink';
+    case 'Payments':
+      return 'violet';
+    case 'Menu':
+      return 'emerald';
+    case 'Marketing':
+      return 'amber';
+    case 'Sales':
+      return 'teal';
+    default:
+      return 'blue';
+  }
+};
+
+const formatSlugLabel = (slug: string) =>
+  slug.replace(/^ReportsNewAdmin_/, '').replace(/([a-z])([A-Z])/g, '$1 $2');
+
+const toReportCard = (report: ApiReportSummary): ReportCard => {
+  const category = inferCategory(report.ReportName, report.Slug);
+
+  return {
+    id: String(report.ID),
+    title: report.ReportName,
+    description: formatSlugLabel(report.Slug),
+    category,
+    color: inferColor(category),
+    apiReport: report,
+  };
 };
 
 interface ReportsProps {
@@ -112,14 +92,60 @@ interface ReportsProps {
 }
 
 export const Reports: React.FC<ReportsProps> = ({ onSelectReport }) => {
+  const token = useAppSelector(selectToken);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeCategory, setActiveCategory] = React.useState<string>('All');
+  const [reports, setReports] = React.useState<ReportCard[]>([]);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const categories = ['All', 'Sales', 'Customers', 'Operations', 'Marketing'];
+  React.useEffect(() => {
+    if (!token) {
+      setReports([]);
+      setError('Sign in to load reports.');
+      return;
+    }
 
-  const filteredReports = REPORTS.filter(report => {
+    let cancelled = false;
+
+    const loadReports = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const data = await fetchReports(token, { page: 1, pageSize: 50, module: 'ReportsNewAdmin' });
+
+        if (!cancelled) {
+          setReports(data.map(toReportCard));
+        }
+      } catch (fetchError) {
+        if (!cancelled) {
+          setReports([]);
+          setError(fetchError instanceof Error ? fetchError.message : 'Failed to load reports.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadReports();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const categories = React.useMemo(() => {
+    const reportCategories = Array.from(new Set(reports.map((report) => report.category))).sort();
+    return ['All', ...reportCategories];
+  }, [reports]);
+
+  const filteredReports = reports.filter(report => {
     const matchesSearch = report.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         report.description.toLowerCase().includes(searchQuery.toLowerCase());
+                         report.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         report.apiReport.Slug.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = activeCategory === 'All' || report.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
@@ -143,6 +169,13 @@ export const Reports: React.FC<ReportsProps> = ({ onSelectReport }) => {
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-8 flex items-center gap-3 rounded-[24px] border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 px-5 py-4 text-rose-700 dark:text-rose-300">
+          <AlertCircle size={18} />
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+      )}
 
       {/* Filters & Search */}
       <div className="flex flex-col lg:flex-row gap-6 mb-10">
@@ -175,11 +208,18 @@ export const Reports: React.FC<ReportsProps> = ({ onSelectReport }) => {
         </div>
       </div>
 
+      {isLoading && (
+        <div className="flex items-center justify-center gap-3 rounded-[28px] border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-10 text-slate-500 dark:text-slate-400 shadow-sm mb-10">
+          <Loader2 className="animate-spin" size={18} />
+          <span className="text-sm font-medium">Loading reports...</span>
+        </div>
+      )}
+
       {/* Reports Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredReports.map((report, index) => {
-          const colors = REPORT_COLORS[report.color];
-          const catColors = CATEGORY_COLORS[report.category];
+          const colors = REPORT_COLORS[report.color] ?? REPORT_COLORS.teal;
+          const catColors = CATEGORY_COLORS[report.category] ?? CATEGORY_COLORS.Operations;
           
           return (
             <motion.div
@@ -187,7 +227,7 @@ export const Reports: React.FC<ReportsProps> = ({ onSelectReport }) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              onClick={() => onSelectReport(report.id)}
+              onClick={() => onSelectReport(report.apiReport.Slug)}
               className="group bg-white dark:bg-slate-900 rounded-[32px] border-2 border-slate-100 dark:border-slate-800 p-8 hover:border-teal-500/50 transition-all cursor-pointer relative overflow-hidden shadow-sm hover:shadow-xl"
             >
               {/* Background Accent */}
@@ -220,13 +260,19 @@ export const Reports: React.FC<ReportsProps> = ({ onSelectReport }) => {
         })}
       </div>
 
-      {filteredReports.length === 0 && (
+      {filteredReports.length === 0 && !isLoading && !error && (
         <div className="text-center py-20">
           <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-400">
             <Search size={32} />
           </div>
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No reports found</h3>
-          <p className="text-slate-500 dark:text-slate-400">Try adjusting your search or category filters.</p>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+            {reports.length === 0 ? 'No reports available' : 'No reports found'}
+          </h3>
+          <p className="text-slate-500 dark:text-slate-400">
+            {reports.length === 0
+              ? 'The reports API returned no rows for this module.'
+              : 'Try adjusting your search or category filters.'}
+          </p>
         </div>
       )}
     </div>
