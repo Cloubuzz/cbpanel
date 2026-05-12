@@ -85,9 +85,57 @@ export interface ApiToppingItem {
   SetasItemName: boolean;
 }
 
+export interface ApiLinkedMenuItem {
+  ID: number;
+  Name: string;
+  Description?: string;
+  CategoryID?: number;
+  IsActive?: boolean;
+  ItemImage?: string;
+  IsItemImageActive?: boolean;
+  Slug?: string;
+}
+
+export interface ApiToppingListItem {
+  id: number;
+  ToppingName: string;
+  ProductName: string;
+  Price: string;
+  OriginalPrice: number;
+  Required: boolean;
+  Multiselect: boolean;
+}
+
 interface ToppingItemsApiResponse {
   responseType: number;
   data?: ApiToppingItem[];
+}
+
+interface LinkedItemsApiResponse {
+  responseType: number;
+  data?: ApiLinkedMenuItem[];
+}
+
+interface ToppingListApiResponse {
+  responseType: number;
+  data?: ApiToppingListItem[];
+}
+
+export interface SaveToppingPayload {
+  id: number;
+  name: string;
+  description: string;
+  menuItemId: number;
+  price: number;
+  originalPrice: number;
+  required: boolean;
+  multiSelect: boolean;
+  isActive: boolean;
+  imageUrl: string;
+}
+
+export interface SaveToppingResponse {
+  message: string;
 }
 
 const API_BASE_PATH = '/adminapi';
@@ -180,4 +228,82 @@ export const fetchToppingItems = async (
   }
 
   return response.data;
+};
+
+export const fetchToppingLinkedItems = async (
+  token: string,
+  toppingName: string,
+): Promise<ApiLinkedMenuItem[]> => {
+  const response = await requestJson<LinkedItemsApiResponse>(
+    `/api/topping/linked-items/${encodeURIComponent(toppingName)}`,
+    {
+      method: 'GET',
+      headers: {
+        accept: '*/*',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (response.responseType !== 1 || !Array.isArray(response.data)) {
+    throw new Error('Failed to fetch linked items.');
+  }
+
+  return response.data;
+};
+
+export interface FetchToppingListOptions {
+  page?: number;
+  pageSize?: number;
+}
+
+export const fetchToppingList = async (
+  token: string,
+  options: FetchToppingListOptions = {},
+): Promise<ApiToppingListItem[]> => {
+  const { page = 1, pageSize = 50 } = options;
+
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('pageSize', String(pageSize));
+
+  const response = await requestJson<ToppingListApiResponse>(
+    `/api/topping/getall?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: {
+        accept: '*/*',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (response.responseType !== 1 || !Array.isArray(response.data)) {
+    throw new Error('Failed to fetch topping list.');
+  }
+
+  return response.data;
+};
+
+export const saveTopping = async (
+  token: string,
+  payload: SaveToppingPayload,
+): Promise<SaveToppingResponse> => {
+  const response = await requestJson<SaveToppingResponse>(
+    `/api/topping/save`,
+    {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        Authorization: `Bearer ${token}`,
+      },
+      body: payload,
+    },
+  );
+
+  if (!response?.message) {
+    throw new Error('Failed to save topping.');
+  }
+
+  return response;
 };

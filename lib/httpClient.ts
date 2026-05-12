@@ -67,6 +67,9 @@ export const requestJson = async <T>(
     const payload = await parsePayload(response);
 
     if (!response.ok) {
+      if (response.status === 401) {
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      }
       throw new HttpClientError(
         extractMessage(payload, 'Request failed.'),
         response.status,

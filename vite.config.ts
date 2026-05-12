@@ -10,6 +10,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: true,
       },
+      '/api': {
+        target: 'https://adminapi.broadwaypizza.com.pk',
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
 });

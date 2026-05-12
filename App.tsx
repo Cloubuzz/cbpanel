@@ -108,11 +108,17 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = React.useCallback(() => {
     clearStoredAuthSession();
     dispatch(logout());
     navigate(LOGIN_PATH, { replace: true });
-  };
+  }, [dispatch, navigate]);
+
+  React.useEffect(() => {
+    const onUnauthorized = () => handleLogout();
+    window.addEventListener('auth:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+  }, [handleLogout]);
 
   const handleSidebarNavigation = (view: View) => {
     const nextPath = getPathForView(view);

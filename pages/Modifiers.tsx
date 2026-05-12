@@ -4,7 +4,6 @@ import {
   Search, 
   Trash2, 
   Layers, 
-  CheckCircle2, 
   Save,
   X,
   Settings2,
@@ -32,7 +31,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useAppSelector } from '../store/hooks';
 import { selectToken } from '../store/selectors/appSelectors';
-import { fetchToppingTemplates } from '../services/menuItemsApi';
+import { fetchToppingLinkedItems, fetchToppingList, saveTopping, type ApiLinkedMenuItem, type ApiToppingListItem } from '../services/menuItemsApi';
 
 interface ModifierItem {
   id: string;
@@ -66,46 +65,64 @@ const MOCK_PRODUCTS = [
   { id: 'p9', name: 'Sprite', price: 2.50 },
 ];
 
-const INITIAL_GROUPS: ModifierGroup[] = [
-  {
-    id: 'mg1',
-    name: 'Crust Options',
-    description: 'Choose your preferred pizza base',
-    selectionType: 'single',
-    isRequired: true,
-    minSelection: 1,
-    maxSelection: 1,
-    isActive: true,
-    items: [
-      { id: 'mi1', name: 'Thin Crust', price: 0, productId: 'p5' },
-      { id: 'mi2', name: 'Thick Crust', price: 2.00, productId: 'p6' },
-    ]
-  },
-  {
-    id: 'mg2',
-    name: 'Extra Toppings',
-    description: 'Add more flavor to your pizza',
-    selectionType: 'multi',
-    isRequired: false,
-    minSelection: 0,
-    maxSelection: 10,
-    isActive: true,
-    items: [
-      { id: 'mi3', name: 'Extra Cheese', price: 2.50, productId: 'p1' },
-      { id: 'mi4', name: 'Pepperoni', price: 3.00, productId: 'p2' },
-    ]
-  }
-];
+const INITIAL_GROUPS: ModifierGroup[] = [];
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 const generateId = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+const mapToppingToGroup = (item: ApiToppingListItem): ModifierGroup => {
+  const parsedPrice = Number.parseFloat(String(item.Price ?? '0'));
+  const price = Number.isFinite(parsedPrice) ? parsedPrice : 0;
+  const productName = item.ProductName?.trim() || 'Unnamed Product';
+  const toppingName = item.ToppingName?.trim() || 'Untitled Topping';
+  const isRequired = Boolean(item.Required);
+  const isMulti = Boolean(item.Multiselect);
+
+  return {
+    id: String(item.id),
+    name: toppingName,
+    description: productName,
+    selectionType: isMulti ? 'multi' : 'single',
+    isRequired,
+    minSelection: isRequired ? 1 : 0,
+    maxSelection: isMulti ? 99 : 1,
+    items: [
+      {
+        id: `${item.id}-item`,
+        name: toppingName,
+        price,
+      },
+    ],
+    isActive: true,
+  };
+};
+
+const mapLinkedItemsToGroup = (group: ModifierGroup, items: ApiLinkedMenuItem[]): ModifierGroup => {
+  if (items.length === 0) return group;
+
+  return {
+    ...group,
+    items: items.map((item, index) => {
+      const itemName = item.Name?.trim() || `Linked Item ${item.ID}`;
+
+      return {
+        id: `${item.ID}-${index}`,
+        name: itemName,
+        price: 0,
+      };
+    }),
+  };
+};
+
 interface SortableModifierItemProps {
   item: ModifierItem;
+  isReadOnly?: boolean;
   onRemove: (id: string) => void;
   onUpdatePrice: (id: string, price: number) => void;
 }
 
-const SortableModifierItem: React.FC<SortableModifierItemProps> = ({ item, onRemove, onUpdatePrice }) => {
+const SortableModifierItem: React.FC<SortableModifierItemProps> = ({ item, isReadOnly = false, onRemove, onUpdatePrice }) => {
   const {
     attributes,
     listeners,
@@ -139,24 +156,28 @@ const SortableModifierItem: React.FC<SortableModifierItemProps> = ({ item, onRem
         <div className="flex-1">
           <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{item.name}</p>
         </div>
-        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 focus-within:border-teal-500 transition-all">
-          <span className="text-[10px] font-bold text-slate-400">RS</span>
-          <input 
-            type="number" 
-            step="0.01"
-            value={item.price === 0 ? '' : item.price}
-            onChange={(e) => onUpdatePrice(item.id, e.target.value === '' ? 0 : parseFloat(e.target.value))}
-            className="bg-transparent border-none outline-none text-sm text-slate-900 dark:text-white font-bold w-16 focus:ring-0 p-0 text-right"
-            placeholder="0.00"
-          />
-        </div>
+        {!isReadOnly && (
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 focus-within:border-teal-500 transition-all">
+            <span className="text-[10px] font-bold text-slate-400">RS</span>
+            <input 
+              type="number" 
+              step="0.01"
+              value={item.price === 0 ? '' : item.price}
+              onChange={(e) => onUpdatePrice(item.id, e.target.value === '' ? 0 : parseFloat(e.target.value))}
+              className="bg-transparent border-none outline-none text-sm text-slate-900 dark:text-white font-bold w-16 focus:ring-0 p-0 text-right"
+              placeholder="0.00"
+            />
+          </div>
+        )}
       </div>
-      <button 
-        onClick={() => onRemove(item.id)}
-        className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors ml-1"
-      >
-        <Trash2 size={14} />
-      </button>
+      {!isReadOnly && (
+        <button 
+          onClick={() => onRemove(item.id)}
+          className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors ml-1"
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
     </div>
   );
 };
@@ -169,38 +190,51 @@ export const Modifiers: React.FC = () => {
   const [currentGroup, setCurrentGroup] = useState<ModifierGroup | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [isLinkedView, setIsLinkedView] = useState(false);
 
   useEffect(() => {
-    const loadTemplates = async () => {
+    const loadToppings = async () => {
       if (!token) return;
 
-      try {
-        const templates = await fetchToppingTemplates(token);
-        const mappedGroups = templates.map((template, index) => {
-          const name = template.Name.trim();
-          return {
-            id: name || `template-${index}`,
-            name: name || 'Untitled Template',
-            description: 'Imported from topping template API',
-            selectionType: 'multi',
-            isRequired: false,
-            minSelection: 0,
-            maxSelection: 99,
-            items: [],
-            isActive: true,
-          } as ModifierGroup;
-        });
+      setIsLoading(true);
+      setLoadError(null);
 
-        if (mappedGroups.length > 0) {
-          setGroups(mappedGroups);
-        }
+      try {
+        const items = await fetchToppingList(token, { page: currentPage, pageSize });
+        const mappedGroups = items.map(mapToppingToGroup);
+        setGroups(mappedGroups);
+        setHasMore(items.length === pageSize);
       } catch (error) {
-        console.error('Failed to load topping templates:', error);
+        console.error('Failed to load topping list:', error);
+        setLoadError('Unable to load modifiers.');
+        setGroups([]);
+        setHasMore(false);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadTemplates();
-  }, [token]);
+    loadToppings();
+  }, [token, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize]);
+
+  useEffect(() => {
+    setCurrentGroup(null);
+    setIsEditing(false);
+    setDetailLoading(false);
+    setDetailError(null);
+    setIsLinkedView(false);
+  }, [currentPage]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -244,11 +278,36 @@ export const Modifiers: React.FC = () => {
     };
     setCurrentGroup(newGroup);
     setIsEditing(true);
+    setIsLinkedView(false);
   };
 
-  const handleEdit = (group: ModifierGroup) => {
+  const handleEdit = async (group: ModifierGroup) => {
     setCurrentGroup({ ...group });
     setIsEditing(true);
+    setIsLinkedView(true);
+
+    if (!token) {
+      setDetailError('Missing authorization token.');
+      return;
+    }
+
+    if (!group.name.trim()) {
+      setDetailError('Missing topping name.');
+      return;
+    }
+
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      const linkedItems = await fetchToppingLinkedItems(token, group.name.trim());
+      setCurrentGroup((prev) => (prev ? mapLinkedItemsToGroup(prev, linkedItems) : mapLinkedItemsToGroup(group, linkedItems)));
+    } catch (error) {
+      console.error('Failed to load linked items:', error);
+      setDetailError('Unable to load linked items.');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -259,40 +318,32 @@ export const Modifiers: React.FC = () => {
 
   const handleSave = async () => {
     if (!currentGroup) return;
+    if (!token) {
+      alert('Missing authorization token.');
+      return;
+    }
     
     setIsSaving(true);
+    const parsedId = Number.parseInt(String(currentGroup.id), 10);
+    const safeId = Number.isFinite(parsedId) ? parsedId : 0;
+    const itemPrice = currentGroup.items[0]?.price ?? 0;
+
     const payload = {
-      type: 'modifier_group',
-      action: (currentGroup.id && groups.find(g => g.id === currentGroup.id)) ? 'update' : 'create',
-      data: currentGroup,
-      timestamp: new Date().toISOString()
+      id: safeId,
+      name: currentGroup.name.trim(),
+      description: currentGroup.description.trim(),
+      menuItemId: 0,
+      price: itemPrice,
+      originalPrice: itemPrice,
+      required: currentGroup.isRequired,
+      multiSelect: currentGroup.selectionType === 'multi',
+      isActive: currentGroup.isActive,
+      imageUrl: '',
     };
 
     try {
-      const response = await fetch('https://automate.megnus.app/webhook/bwv3api', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await saveTopping(token, payload);
 
-      if (response.ok) {
-        if (currentGroup.id && groups.find(g => g.id === currentGroup.id)) {
-          setGroups(groups.map(g => g.id === currentGroup.id ? currentGroup : g));
-        } else {
-          setGroups([...groups, currentGroup]);
-        }
-        setIsEditing(false);
-        setCurrentGroup(null);
-        alert('Modifier group saved and submitted successfully!');
-      } else {
-        throw new Error('Failed to submit to webhook');
-      }
-    } catch (error) {
-      console.error('Error saving modifier group:', error);
-      alert('Modifier group saved locally, but webhook submission failed.');
-      // Still save locally even if webhook fails
       if (currentGroup.id && groups.find(g => g.id === currentGroup.id)) {
         setGroups(groups.map(g => g.id === currentGroup.id ? currentGroup : g));
       } else {
@@ -300,6 +351,10 @@ export const Modifiers: React.FC = () => {
       }
       setIsEditing(false);
       setCurrentGroup(null);
+      alert(response.message || 'Modifier saved successfully.');
+    } catch (error) {
+      console.error('Error saving modifier:', error);
+      alert('Unable to save modifier.');
     } finally {
       setIsSaving(false);
     }
@@ -341,7 +396,7 @@ export const Modifiers: React.FC = () => {
   );
 
   return (
-    <div className="p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="p-6 md:p-10 max-w-[1600px] mx-auto bg-slate-50 dark:bg-slate-950 lg:h-screen lg:overflow-hidden">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div>
@@ -362,29 +417,9 @@ export const Modifiers: React.FC = () => {
         </button>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        {[
-          { label: 'Total Groups', value: groups.length, icon: <Layers size={20} />, color: 'teal' },
-          { label: 'Active Items', value: groups.reduce((acc, g) => acc + g.items.length, 0), icon: <Package size={20} />, color: 'emerald' },
-          { label: 'Required Groups', value: groups.filter(g => g.isRequired).length, icon: <CheckCircle2 size={20} />, color: 'rose' },
-          { label: 'Multi-Select', value: groups.filter(g => g.selectionType === 'multi').length, icon: <Settings2 size={20} />, color: 'blue' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 p-6 rounded-[24px] shadow-sm border border-slate-100 dark:border-slate-800 flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-500/10 text-${stat.color}-500 flex items-center justify-center`}>
-              {stat.icon}
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label}</p>
-              <p className="text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* List Section */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 flex flex-col gap-6 lg:h-[calc(100vh-170px)]">
           <div className="relative group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-teal-500 transition-colors" size={20} />
             <input 
@@ -396,8 +431,23 @@ export const Modifiers: React.FC = () => {
             />
           </div>
 
-          <div className="space-y-4">
-            {filteredGroups.map(group => (
+          <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+            {isLoading && (
+              <div className="p-6 rounded-[24px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-sm font-bold text-slate-500 text-center">
+                Loading modifiers...
+              </div>
+            )}
+            {!isLoading && loadError && (
+              <div className="p-6 rounded-[24px] bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-sm font-bold text-rose-500 text-center">
+                {loadError}
+              </div>
+            )}
+            {!isLoading && !loadError && filteredGroups.length === 0 && (
+              <div className="p-6 rounded-[24px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-sm font-bold text-slate-500 text-center">
+                No modifiers found on this page.
+              </div>
+            )}
+            {!isLoading && !loadError && filteredGroups.map(group => (
               <motion.div 
                 layout
                 key={group.id}
@@ -411,6 +461,7 @@ export const Modifiers: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-900 dark:text-white">{group.name}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{group.description}</p>
                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{group.items.length} Options</p>
                     </div>
                   </div>
@@ -435,10 +486,44 @@ export const Modifiers: React.FC = () => {
               </motion.div>
             ))}
           </div>
+
+          {!isLoading && (currentPage > 1 || hasMore) && (
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500">Rows</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 outline-none"
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  className="px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-xs text-slate-600 dark:text-slate-300 hover:border-teal-500 transition-all disabled:opacity-40"
+                >
+                  Previous
+                </button>
+                <span className="text-xs font-bold text-slate-500">Page {currentPage}</span>
+                <button
+                  onClick={() => setCurrentPage((page) => page + 1)}
+                  disabled={!hasMore}
+                  className="px-5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl font-bold text-xs text-slate-600 dark:text-slate-300 hover:border-teal-500 transition-all disabled:opacity-40"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Management Section */}
-        <div className="lg:col-span-8">
+        <div className="lg:col-span-8 lg:sticky lg:top-6 lg:h-[calc(100vh-170px)] lg:overflow-y-auto">
           <AnimatePresence mode="wait">
             {isEditing && currentGroup ? (
               <motion.div 
@@ -593,46 +678,57 @@ export const Modifiers: React.FC = () => {
                         <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-500 flex items-center justify-center">
                           <Package size={18} />
                         </div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Modifier Items</h3>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Linked Items</h3>
                       </div>
-                      
-                      <div className="relative">
-                        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2 focus-within:border-teal-500 transition-all">
-                          <Search size={16} className="text-slate-400" />
-                          <input 
-                            type="text" 
-                            placeholder="Add existing product..."
-                            value={productSearch}
-                            onChange={(e) => setProductSearch(e.target.value)}
-                            className="bg-transparent border-none outline-none text-sm w-48 dark:text-white"
-                          />
-                        </div>
-                        
-                        {productSearch && (
-                          <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-                            <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
-                              {filteredProducts.length > 0 ? filteredProducts.map(product => (
-                                <button 
-                                  key={product.id}
-                                  onClick={() => addProductToGroup(product)}
-                                  className="w-full flex items-center justify-between p-3 hover:bg-teal-50 dark:hover:bg-teal-500/10 rounded-xl transition-all group/item"
-                                >
-                                  <div className="text-left">
-                                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover/item:text-teal-600">{product.name}</p>
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">RS {product.price.toFixed(2)}</p>
-                                  </div>
-                                  <Plus size={16} className="text-slate-300 group-hover/item:text-teal-500" />
-                                </button>
-                              )) : (
-                                <div className="p-4 text-center text-xs text-slate-500 italic">No products found</div>
-                              )}
-                            </div>
+                      {!isLinkedView && (
+                        <div className="relative">
+                          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2 focus-within:border-teal-500 transition-all">
+                            <Search size={16} className="text-slate-400" />
+                            <input 
+                              type="text" 
+                              placeholder="Add existing product..."
+                              value={productSearch}
+                              onChange={(e) => setProductSearch(e.target.value)}
+                              className="bg-transparent border-none outline-none text-sm w-48 dark:text-white"
+                            />
                           </div>
-                        )}
-                      </div>
+                          
+                          {productSearch && (
+                            <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                              <div className="p-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                {filteredProducts.length > 0 ? filteredProducts.map(product => (
+                                  <button 
+                                    key={product.id}
+                                    onClick={() => addProductToGroup(product)}
+                                    className="w-full flex items-center justify-between p-3 hover:bg-teal-50 dark:hover:bg-teal-500/10 rounded-xl transition-all group/item"
+                                  >
+                                    <div className="text-left">
+                                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 group-hover/item:text-teal-600">{product.name}</p>
+                                      <p className="text-[10px] text-slate-400 uppercase tracking-widest">RS {product.price.toFixed(2)}</p>
+                                    </div>
+                                    <Plus size={16} className="text-slate-300 group-hover/item:text-teal-500" />
+                                  </button>
+                                )) : (
+                                  <div className="p-4 text-center text-xs text-slate-500 italic">No products found</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {detailLoading && (
+                        <div className="col-span-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500">
+                          Loading modifier details...
+                        </div>
+                      )}
+                      {!detailLoading && detailError && (
+                        <div className="col-span-full px-4 py-3 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-xs font-bold text-rose-500">
+                          {detailError}
+                        </div>
+                      )}
                       <DndContext 
                         sensors={sensors}
                         collisionDetection={closestCenter}
@@ -646,6 +742,7 @@ export const Modifiers: React.FC = () => {
                             <SortableModifierItem 
                               key={item.id} 
                               item={item} 
+                              isReadOnly={isLinkedView}
                               onRemove={removeItemFromGroup}
                               onUpdatePrice={handleUpdateItemPrice}
                             />
@@ -653,13 +750,13 @@ export const Modifiers: React.FC = () => {
                         </SortableContext>
                       </DndContext>
                       
-                      {currentGroup.items.length === 0 && (
+                      {currentGroup.items.length === 0 && !detailLoading && (
                         <div className="col-span-full py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center text-center">
                           <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
                             <Plus size={24} />
                           </div>
-                          <p className="text-sm text-slate-500 font-bold">No items added yet</p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">Search and add existing products above</p>
+                          <p className="text-sm text-slate-500 font-bold">No linked items found</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-1">This topping is not used by any menu item</p>
                         </div>
                       )}
                     </div>
