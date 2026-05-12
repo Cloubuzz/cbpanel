@@ -10,13 +10,14 @@ import {
   Calendar,
   Download,
   Clock,
+  Users,
   MapPin,
   Utensils,
   Star,
   Truck,
-  AlertCircle,
   ChevronDown,
-  Check
+  Check,
+  XCircle
 } from 'lucide-react';
 import { 
   Area, 
@@ -42,27 +43,13 @@ import {
   AreaChart
 } from 'recharts';
 import { MetricCardProps } from '../types';
+import { useAppSelector } from '../store/hooks';
+import { selectToken } from '../store/selectors/appSelectors';
+import { fetchDashboardRejectedRevenue, fetchDashboardSalesRevenue, fetchDashboardSalesCount, fetchDashboardRejectedCount, fetchDashboardCustomers, fetchDashboardHourlyPerformance, fetchDashboardOrderChannels, fetchDashboardPaymentSplit, fetchDashboardCustomerLoyalty, fetchDashboardOrderFulfillment, fetchDashboardBranchPerformance, type DashboardRejectedRevenue, type DashboardSalesRevenue, type DashboardSalesCount, type DashboardRejectedCount, type DashboardCustomers, type DashboardHourlyPerformance, type DashboardBranchPerformance } from '../services/reportsApi';
 
 // --- Mock Data for Pizza Chain ---
 
-const hourlySalesData = [
-  { time: '10am', sales: 1200, orders: 45, delivery: 30 },
-  { time: '12pm', sales: 4500, orders: 180, delivery: 120 },
-  { time: '2pm', sales: 3200, orders: 110, delivery: 80 },
-  { time: '4pm', sales: 2800, orders: 95, delivery: 70 },
-  { time: '6pm', sales: 8500, orders: 320, delivery: 240 },
-  { time: '8pm', sales: 12000, orders: 450, delivery: 380 },
-  { time: '10pm', sales: 6500, orders: 210, delivery: 150 },
-  { time: '12am', sales: 2100, orders: 75, delivery: 60 },
-];
 
-const branchPerformance = [
-  { name: 'Downtown', sales: 45000, growth: 12.5, status: 'Busy', rating: 4.8 },
-  { name: 'Westside', sales: 38000, growth: 8.2, status: 'Normal', rating: 4.5 },
-  { name: 'East End', sales: 32000, growth: -2.4, status: 'Slow', rating: 4.2 },
-  { name: 'North Park', sales: 51000, growth: 15.8, status: 'Peak', rating: 4.9 },
-  { name: 'South Bay', sales: 29000, growth: 4.1, status: 'Normal', rating: 4.6 },
-];
 
 const topProducts = [
   { name: 'Pepperoni Feast', value: 450, color: '#14b8a6' },
@@ -72,19 +59,7 @@ const topProducts = [
   { name: 'Meat Lovers', value: 190, color: '#021816' },
 ];
 
-const orderSources = [
-  { name: 'Mobile App', value: 55, fill: '#14b8a6' },
-  { name: 'Website', value: 25, fill: '#0d9488' },
-  { name: 'Aggregators', value: 15, fill: '#0f766e' },
-  { name: 'Walk-in', value: 5, fill: '#052e2b' },
-];
-
-const paymentMethods = [
-  { name: 'Credit Card', value: 65, fill: '#14b8a6' },
-  { name: 'Apple Pay', value: 20, fill: '#0d9488' },
-  { name: 'Cash', value: 10, fill: '#0f766e' },
-  { name: 'Crypto', value: 5, fill: '#052e2b' },
-];
+const CHANNEL_COLORS = ['#14b8a6', '#0d9488', '#0f766e', '#052e2b', '#021816'];
 
 const branchComparison = [
   { subject: 'Sales', A: 120, B: 110, fullMark: 150 },
@@ -113,15 +88,6 @@ const prepTimeTrend = [
   { day: 'Sun', avgTime: 28, target: 20 },
 ];
 
-const customerLoyaltyData = [
-  { month: 'Sep', new: 450, repeat: 820 },
-  { month: 'Oct', new: 520, repeat: 940 },
-  { month: 'Nov', new: 480, repeat: 1100 },
-  { month: 'Dec', new: 700, repeat: 1450 },
-  { month: 'Jan', new: 550, repeat: 1200 },
-  { month: 'Feb', new: 600, repeat: 1350 },
-];
-
 const trafficData = [
   { time: '8am', visitors: 120 },
   { time: '10am', visitors: 450 },
@@ -133,12 +99,13 @@ const trafficData = [
   { time: '10pm', visitors: 1100 },
 ];
 
-const orderStatusData = [
-  { name: 'Delivered', value: 82, fill: '#14b8a6' },
-  { name: 'In Transit', value: 12, fill: '#0d9488' },
-  { name: 'Cancelled', value: 4, fill: '#ef4444' },
-  { name: 'Refunded', value: 2, fill: '#94a3b8' },
-];
+const FULFILLMENT_COLOR = (status: string): string => {
+  const s = status.toLowerCase();
+  if (s === 'confirmed') return '#14b8a6';
+  if (s === 'rejected') return '#ef4444';
+  if (s.includes('decline') || s.includes('undefined')) return '#f59e0b';
+  return '#94a3b8';
+};
 
 const aovData = [
   { day: 'Mon', aov: 22 },
@@ -157,7 +124,11 @@ const liveOrders = [
   { id: '#PIZ-9918', branch: 'Downtown', items: '1x Veggie Supreme', total: 'RS 19.50', time: '15 mins ago', status: 'Delivered' },
 ];
 
-const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend, trendUp, icon }) => (
+const ChartSkeleton: React.FC<{ height?: string }> = ({ height = 'h-[200px]' }) => (
+  <div className={`${height} w-full animate-pulse bg-slate-200 dark:bg-slate-800 rounded-xl`} />
+);
+
+const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend, trendUp, icon, isLoading }) => (
   <div className="glass-card p-4 rounded-xl relative overflow-hidden group border border-slate-200 dark:border-slate-800">
     <div className="absolute -right-10 -top-10 w-24 h-24 bg-teal-500/5 rounded-full blur-[30px] group-hover:bg-teal-500/15 transition-all duration-500 opacity-0 group-hover:opacity-100"></div>
     
@@ -165,7 +136,7 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend, trendUp, i
       <div className="p-2 bg-teal-50 dark:bg-teal-950/30 border border-teal-100 dark:border-teal-500/20 rounded-lg text-teal-600 dark:text-teal-400">
         {icon}
       </div>
-      {trend && (
+      {trend && !isLoading && (
         <div className={`flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
             trendUp 
             ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400' 
@@ -177,15 +148,57 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, trend, trendUp, i
       )}
     </div>
     <h3 className="text-slate-500 dark:text-slate-400 text-[10px] font-bold mb-0.5 tracking-wider uppercase">{title}</h3>
-    <p className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{value}</p>
+    {isLoading ? (
+      <div className="animate-pulse h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded-md mt-1" />
+    ) : (
+      <p className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{value}</p>
+    )}
   </div>
 );
 
+const getDateRange = (filter: string): { startDate: string; endDate: string } => {
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+  switch (filter) {
+    case 'Yesterday': {
+      const y = new Date(today);
+      y.setDate(today.getDate() - 1);
+      return { startDate: fmt(y), endDate: fmt(y) };
+    }
+    case 'Last 7 Days': {
+      const s = new Date(today);
+      s.setDate(today.getDate() - 6);
+      return { startDate: fmt(s), endDate: fmt(today) };
+    }
+    case 'Last 30 Days': {
+      const s = new Date(today);
+      s.setDate(today.getDate() - 29);
+      return { startDate: fmt(s), endDate: fmt(today) };
+    }
+    default:
+      return { startDate: fmt(today), endDate: fmt(today) };
+  }
+};
+
 export const Dashboard: React.FC = () => {
+  const token = useAppSelector(selectToken);
   const [selectedBranch, setSelectedBranch] = useState('All Branches');
   const [dateFilter, setDateFilter] = useState('Today');
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
   const dateFilterRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [rejectedRevenue, setRejectedRevenue] = useState<DashboardRejectedRevenue | null>(null);
+  const [salesRevenue, setSalesRevenue] = useState<DashboardSalesRevenue | null>(null);
+  const [salesCount, setSalesCount] = useState<DashboardSalesCount | null>(null);
+  const [rejectedCount, setRejectedCount] = useState<DashboardRejectedCount | null>(null);
+  const [customers, setCustomers] = useState<DashboardCustomers | null>(null);
+  const [hourlyData, setHourlyData] = useState<DashboardHourlyPerformance[]>([]);
+  const [orderChannels, setOrderChannels] = useState<{ name: string; value: number; fill: string; totalSale: number }[]>([]);
+  const [paymentSplit, setPaymentSplit] = useState<{ name: string; value: number; fill: string; totalSale: number }[]>([]);
+  const [customerLoyalty, setCustomerLoyalty] = useState<{ month: string; new: number; repeat: number }[]>([]);
+  const [orderFulfillment, setOrderFulfillment] = useState<{ name: string; value: number; fill: string }[]>([]);
+  const [branchPerformance, setBranchPerformance] = useState<DashboardBranchPerformance[]>([]);
 
   const dateOptions = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days', 'Custom Range'];
 
@@ -198,6 +211,33 @@ export const Dashboard: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    setIsLoading(true);
+    const { startDate, endDate } = getDateRange(dateFilter);
+    Promise.allSettled([
+      fetchDashboardSalesRevenue(token, { startDate, endDate }).then(setSalesRevenue).catch(() => setSalesRevenue(null)),
+      fetchDashboardSalesCount(token, { startDate, endDate }).then(setSalesCount).catch(() => setSalesCount(null)),
+      fetchDashboardCustomers(token, { startDate, endDate }).then(setCustomers).catch(() => setCustomers(null)),
+      fetchDashboardRejectedCount(token, { startDate, endDate }).then(setRejectedCount).catch(() => setRejectedCount(null)),
+      fetchDashboardRejectedRevenue(token, { startDate, endDate }).then(setRejectedRevenue).catch(() => setRejectedRevenue(null)),
+      fetchDashboardHourlyPerformance(token, { startDate, endDate }).then(setHourlyData).catch(() => setHourlyData([])),
+      fetchDashboardOrderChannels(token, { startDate, endDate })
+        .then((data) => setOrderChannels(data.map((item, i) => ({ name: item.Channel, value: item.PercentageOrders, fill: CHANNEL_COLORS[i % CHANNEL_COLORS.length], totalSale: item.TotalSale }))))
+        .catch(() => setOrderChannels([])),
+      fetchDashboardPaymentSplit(token, { startDate, endDate })
+        .then((data) => setPaymentSplit(data.map((item, i) => ({ name: item.paymenttype, value: item.percentage, fill: CHANNEL_COLORS[i % CHANNEL_COLORS.length], totalSale: item.total_sales }))))
+        .catch(() => setPaymentSplit([])),
+      fetchDashboardCustomerLoyalty(token, { startDate, endDate })
+        .then((data) => setCustomerLoyalty(data.map((item) => ({ month: item.month_name.slice(0, 3), new: item.new_customers, repeat: item.returning_customers }))))
+        .catch(() => setCustomerLoyalty([])),
+      fetchDashboardOrderFulfillment(token, { startDate, endDate })
+        .then((data) => setOrderFulfillment(data.map((item) => ({ name: item.STATUS, value: item.percentage, fill: FULFILLMENT_COLOR(item.STATUS) }))))
+        .catch(() => setOrderFulfillment([])),
+      fetchDashboardBranchPerformance(token, { startDate, endDate }).then(setBranchPerformance).catch(() => setBranchPerformance([])),
+    ]).finally(() => setIsLoading(false));
+  }, [token, dateFilter]);
 
   return (
     <div className="p-3 md:p-6 space-y-4 animate-fade-in pb-20 bg-slate-50 dark:bg-slate-950 min-h-screen font-sans">
@@ -273,12 +313,46 @@ export const Dashboard: React.FC = () => {
 
       {/* --- KPI Row --- */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <MetricCard title="Sales" value="RS 42.8k" trend="+14%" trendUp={true} icon={<DollarSign size={16} />} />
-        <MetricCard title="Orders" value="1,842" trend="+5%" trendUp={true} icon={<ShoppingBag size={16} />} />
-        <MetricCard title="Prep Time" value="24m" trend="-2m" trendUp={true} icon={<Clock size={16} />} />
-        <MetricCard title="Rating" value="4.7" trend="+0.2" trendUp={true} icon={<Star size={16} />} />
-        <MetricCard title="Delivery" value="68%" trend="+3%" trendUp={true} icon={<Truck size={16} />} />
-        <MetricCard title="Waste" value="2.4%" trend="-0.5%" trendUp={true} icon={<AlertCircle size={16} />} />
+        <MetricCard
+          title="Sales"
+          value={salesRevenue ? `RS ${(salesRevenue.TotalSales / 1000000).toFixed(1)}M` : '—'}
+          trend={salesRevenue ? `${salesRevenue.ChangePercent > 0 ? '+' : ''}${salesRevenue.ChangePercent}%` : undefined}
+          trendUp={salesRevenue ? salesRevenue.ChangePercent >= 0 : undefined}
+          icon={<DollarSign size={16} />}
+          isLoading={isLoading}
+        />
+        <MetricCard
+          title="Orders"
+          value={salesCount ? salesCount.TotalOrders.toLocaleString() : '—'}
+          trend={salesCount ? `${salesCount.ChangePercent > 0 ? '+' : ''}${salesCount.ChangePercent}%` : undefined}
+          trendUp={salesCount ? salesCount.ChangePercent >= 0 : undefined}
+          icon={<ShoppingBag size={16} />}
+          isLoading={isLoading}
+        />
+        <MetricCard
+          title="Customers"
+          value={customers ? customers.TotalCustomers.toLocaleString() : '—'}
+          trend={customers ? `${customers.ChangePercent > 0 ? '+' : ''}${customers.ChangePercent}%` : undefined}
+          trendUp={customers ? customers.ChangePercent >= 0 : undefined}
+          icon={<Users size={16} />}
+          isLoading={isLoading}
+        />
+        <MetricCard
+          title="Rejected Orders"
+          value={rejectedCount ? rejectedCount.TotalRejected.toLocaleString() : '—'}
+          trend={rejectedCount ? `${rejectedCount.ChangePercent > 0 ? '+' : ''}${rejectedCount.ChangePercent}%` : undefined}
+          trendUp={rejectedCount ? rejectedCount.ChangePercent <= 0 : undefined}
+          icon={<Truck size={16} />}
+          isLoading={isLoading}
+        />
+        <MetricCard
+          title="Rejected Revenue"
+          value={rejectedRevenue ? `RS ${(rejectedRevenue.TotalRejectedAmount / 1000).toFixed(1)}k` : '—'}
+          trend={rejectedRevenue ? `${rejectedRevenue.ChangePercent > 0 ? '+' : ''}${rejectedRevenue.ChangePercent}%` : undefined}
+          trendUp={rejectedRevenue ? rejectedRevenue.ChangePercent <= 0 : undefined}
+          icon={<XCircle size={16} />}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* --- Main Data Grid (PowerBI Style) --- */}
@@ -300,17 +374,18 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="h-[300px] w-full">
+            {isLoading ? <ChartSkeleton height="h-[300px]" /> : (
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={hourlySalesData}>
+              <ComposedChart data={hourlyData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" strokeOpacity={0.1} />
-                <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
+                <XAxis dataKey="HourLabel" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
                 <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' }} />
-                <Area type="monotone" dataKey="sales" fill="#14b8a6" fillOpacity={0.05} stroke="#14b8a6" strokeWidth={2} />
-                <Bar dataKey="orders" fill="#94a3b8" fillOpacity={0.2} radius={[2, 2, 0, 0]} barSize={15} />
-                <Line type="monotone" dataKey="delivery" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="Sales" fill="#14b8a6" fillOpacity={0.05} stroke="#14b8a6" strokeWidth={2} />
+                <Line type="monotone" dataKey="Delivery" stroke="#f59e0b" strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -370,17 +445,19 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-4 glass-card rounded-xl p-5 border border-slate-200 dark:border-slate-800">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Order Channels</h2>
           <div className="h-[200px] w-full">
+            {isLoading ? <ChartSkeleton /> : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={orderSources} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                  {orderSources.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
+                <Pie data={orderChannels} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {orderChannels.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [`${value}%`, name]} />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-y-2 mt-4">
-            {orderSources.map((s, i) => (
+            {!isLoading && orderChannels.map((s, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{backgroundColor: s.fill}}></div>
                 <span className="text-[10px] font-bold text-slate-500 uppercase">{s.name}</span>
@@ -394,15 +471,17 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-4 glass-card rounded-xl p-5 border border-slate-200 dark:border-slate-800">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Payment Split</h2>
           <div className="h-[200px] w-full">
+            {isLoading ? <ChartSkeleton /> : (
             <ResponsiveContainer width="100%" height="100%">
-              <RadialBarChart cx="50%" cy="50%" innerRadius="10%" outerRadius="80%" barSize={10} data={paymentMethods}>
+              <RadialBarChart cx="50%" cy="50%" innerRadius="10%" outerRadius="80%" barSize={10} data={paymentSplit}>
                 <RadialBar background dataKey="value" />
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [`${value}%`, name]} />
               </RadialBarChart>
             </ResponsiveContainer>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-y-2 mt-4">
-            {paymentMethods.map((s, i) => (
+            {!isLoading && paymentSplit.map((s, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{backgroundColor: s.fill}}></div>
                 <span className="text-[10px] font-bold text-slate-500 uppercase">{s.name}</span>
@@ -439,8 +518,9 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-4 glass-card rounded-xl p-5 border border-slate-200 dark:border-slate-800">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Customer Loyalty</h2>
           <div className="h-[200px] w-full">
+            {isLoading ? <ChartSkeleton /> : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={customerLoyaltyData}>
+              <BarChart data={customerLoyalty}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" strokeOpacity={0.1} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
@@ -449,6 +529,7 @@ export const Dashboard: React.FC = () => {
                 <Bar dataKey="new" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </div>
           <div className="flex justify-center gap-4 mt-4">
             <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-teal-500"></div><span className="text-[9px] font-bold text-slate-500 uppercase">Repeat</span></div>
@@ -491,17 +572,19 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-4 glass-card rounded-xl p-5 border border-slate-200 dark:border-slate-800">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4">Order Fulfillment</h2>
           <div className="h-[200px] w-full">
+            {isLoading ? <ChartSkeleton /> : (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={orderStatusData} innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value">
-                  {orderStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
+                <Pie data={orderFulfillment} innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value">
+                  {orderFulfillment.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.fill} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [`${value}%`, name]} />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-y-2 mt-4">
-            {orderStatusData.map((s, i) => (
+            {!isLoading && orderFulfillment.map((s, i) => (
               <div key={i} className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{backgroundColor: s.fill}}></div>
                 <span className="text-[10px] font-bold text-slate-500 uppercase">{s.name}</span>
@@ -560,10 +643,18 @@ export const Dashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-900">
-                {branchPerformance.map((b, idx) => (
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, idx) => (
+                    <tr key={idx}>
+                      <td colSpan={6} className="py-2">
+                        <div className="animate-pulse h-6 bg-slate-200 dark:bg-slate-800 rounded-md" />
+                      </td>
+                    </tr>
+                  ))
+                ) : branchPerformance.map((b, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
-                    <td className="py-3 text-xs font-bold text-slate-800 dark:text-slate-200">{b.name}</td>
-                    <td className="py-3 text-xs font-medium text-slate-600 dark:text-slate-400">RS {b.sales.toLocaleString()}</td>
+                    <td className="py-3 text-xs font-bold text-slate-800 dark:text-slate-200">{b.branch}</td>
+                    <td className="py-3 text-xs font-medium text-slate-600 dark:text-slate-400">RS {b.revenue.toLocaleString()}</td>
                     <td className="py-3">
                       <span className={`text-[10px] font-bold flex items-center gap-0.5 ${b.growth > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {b.growth > 0 ? <ArrowUpRight size={10}/> : <ArrowDownRight size={10}/>}
@@ -577,12 +668,8 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3">
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                        b.status === 'Peak' ? 'bg-rose-50 text-rose-600' :
-                        b.status === 'Busy' ? 'bg-amber-50 text-amber-600' :
-                        'bg-emerald-50 text-emerald-600'
-                      }`}>
-                        {b.status}
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-600">
+                        {b.STATUS}
                       </span>
                     </td>
                     <td className="py-3 text-right">

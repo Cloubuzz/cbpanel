@@ -45,6 +45,7 @@ export interface MetricCardProps {
   trendUp?: boolean;
   icon: ReactNode;
   color?: string;
+  isLoading?: boolean;
 }
 
 export interface ActivityItem {
