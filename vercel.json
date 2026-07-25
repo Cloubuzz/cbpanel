@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/adminapi/:path*",
+      "destination": "https://adminapi-pizzamax.cloubuzz.com/adminapi/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
