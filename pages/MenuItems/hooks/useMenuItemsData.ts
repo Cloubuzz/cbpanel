@@ -10,10 +10,20 @@ export function useMenuItemsData(token: string | null) {
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [filterOnlyActive, setFilterOnlyActive] = useState<boolean | undefined>(true);
+  const [filterOnlyActive, setFilterOnlyActive] = useState<string>('true');
   const [filterCategoryId, setFilterCategoryId] = useState<number | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   const loadItems = useCallback(async () => {
     if (!token) return;
@@ -25,6 +35,7 @@ export function useMenuItemsData(token: string | null) {
         pageSize: PAGE_SIZE,
         onlyActive: filterOnlyActive,
         categoryId: filterCategoryId,
+        searchTerm: debouncedSearchTerm || undefined,
       });
       setItems(data.map(mapApiMenuItem));
     } catch (err) {
@@ -32,7 +43,7 @@ export function useMenuItemsData(token: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [token, currentPage, filterOnlyActive, filterCategoryId]);
+  }, [token, currentPage, filterOnlyActive, filterCategoryId, debouncedSearchTerm]);
 
   useEffect(() => {
     loadItems();
@@ -42,7 +53,7 @@ export function useMenuItemsData(token: string | null) {
     const loadCategoriesData = async () => {
       if (!token) return;
       try {
-        const fetchedCategories = await fetchCategories(token, true);
+        const fetchedCategories = await fetchCategories(token, false);
         setCategories(fetchedCategories);
       } catch (error) {
         console.error('Failed to load active categories:', error);
@@ -93,6 +104,8 @@ export function useMenuItemsData(token: string | null) {
     setFilterCategoryId,
     currentPage,
     setCurrentPage,
+    searchTerm,
+    setSearchTerm,
     modifierGroups,
     loadItems,
   };

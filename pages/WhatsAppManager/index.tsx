@@ -155,7 +155,7 @@ export const WhatsAppManager: React.FC = () => {
               <ArrowLeft size={20} className="text-white" />
               <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-sm">C</div>
               <div className="flex-1">
-                 <h4 className="text-white font-bold text-sm leading-tight">Cloubuzz Store</h4>
+                  <h4 className="text-white font-bold text-sm leading-tight">Broadway Pizza Store</h4>
                  <p className="text-white/80 text-[10px]">Business Account</p>
               </div>
               <div className="flex gap-4 text-white pr-2">
@@ -244,7 +244,7 @@ export const WhatsAppManager: React.FC = () => {
   if (view === 'list') {
     return (
       <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-[calc(100vh-80px)] overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">

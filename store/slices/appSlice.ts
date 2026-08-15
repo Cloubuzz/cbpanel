@@ -60,6 +60,15 @@ const appSlice = createSlice({
     setSidebarOpen(state, action: PayloadAction<boolean>) {
       state.isSidebarOpen = action.payload;
     },
+    updateCurrentUser(state, action: PayloadAction<{ name: string }>) {
+      if (state.user) {
+        state.user.name = action.payload.name;
+        const storedAuth = readStoredAuthSession();
+        if (storedAuth.token) {
+          persistAuthSession(storedAuth.token, state.user);
+        }
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -88,6 +97,7 @@ export const {
   logout,
   clearAuthError,
   setSidebarOpen,
+  updateCurrentUser,
 } = appSlice.actions;
 
 export type { LoginCredentials };

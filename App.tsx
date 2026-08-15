@@ -28,8 +28,11 @@ import {
   selectCurrentUser,
   selectIsAuthenticated,
   selectIsSidebarOpen,
+  selectToken,
 } from "./store/selectors/appSelectors";
 import { clearStoredAuthSession } from "./services/authStorage";
+import { fetchRolePermissions } from "./services/roleManagementApi";
+import { DEFAULT_ROLE_MODULES } from "./constants";
 import {
   DEFAULT_AUTHENTICATED_PATH,
   getPathForView,
@@ -55,6 +58,8 @@ const Chat = lazyNamed(() => import("./pages/Chat"), "Chat");
 const Segments = lazyNamed(() => import("./pages/Segments"), "Segments");
 const Settings = lazyNamed(() => import("./pages/Settings"), "Settings");
 const LiveOrders = lazyNamed(() => import("./pages/live-orders"), "LiveOrders");
+const CustomerJourney = lazyNamed(() => import("./pages/live-orders/Journey"), "CustomerJourney");
+const HoldItems = lazyNamed(() => import("./pages/HoldItems"), "HoldItems");
 const MenuItems = lazyNamed(() => import("./pages/MenuItems"), "MenuItems");
 const Login = lazyNamed(() => import("./pages/Login"), "Login");
 const Launchpad = lazyNamed(() => import("./pages/Launchpad"), "Launchpad");
@@ -72,6 +77,14 @@ const HelpDesk = lazyNamed(() => import("./pages/HelpDesk"), "HelpDesk");
 const Blogs = lazyNamed(() => import("./pages/Blogs"), "Blogs");
 const BlogDetail = lazyNamed(() => import("./pages/BlogDetail"), "BlogDetail");
 const Pos = lazyNamed(() => import("./pages/Pos"), "Pos");
+const AuditLogs = lazyNamed(() => import("./pages/AuditLogs"), "AuditLogs");
+const Tests = lazyNamed(() => import("./pages/Tests"), "Tests");
+const Enquiries = lazyNamed(() => import("./pages/Enquiries"), "Enquiries");
+const Orders = lazyNamed(() => import("./pages/Orders"), "Orders");
+const Retention = lazyNamed(() => import("./pages/Retention"), "Retention");
+const Users = lazyNamed(() => import("./pages/Users"), "Users");
+const RoleManagement = lazyNamed(() => import("./pages/RoleManagement"), "RoleManagement");
+const Profile = lazyNamed(() => import("./pages/Profile"), "Profile");
 
 const AutomationDetailRoute: React.FC<{ onBack: () => void }> = ({
   onBack,
@@ -130,6 +143,37 @@ const App: React.FC = () => {
     window.addEventListener('auth:unauthorized', onUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
   }, [handleLogout]);
+
+  const token = useAppSelector(selectToken);
+
+  React.useEffect(() => {
+    const syncPermissions = async () => {
+      if (!token) return;
+      try {
+        const dbPermissions = await fetchRolePermissions(token);
+        const permissionMap: Record<string, string[]> = {};
+        dbPermissions.forEach((p) => {
+          const role = p.UserType.toLowerCase();
+          if (!permissionMap[role]) permissionMap[role] = [];
+          permissionMap[role].push(p.ModuleId);
+        });
+
+        const updatedModules = { ...DEFAULT_ROLE_MODULES };
+        Object.keys(permissionMap).forEach((role) => {
+          updatedModules[role] = permissionMap[role];
+        });
+
+        localStorage.setItem("pizzamax_role_modules", JSON.stringify(updatedModules));
+        window.dispatchEvent(new Event("role_modules_changed"));
+      } catch (err) {
+        console.error("Failed to sync permissions:", err);
+      }
+    };
+
+    if (isAuthenticated && token) {
+      syncPermissions();
+    }
+  }, [isAuthenticated, token, handleLogout]);
 
   const handleSidebarNavigation = (view: View) => {
     const nextPath = getPathForView(view);
@@ -253,7 +297,10 @@ const App: React.FC = () => {
               </div>
 
               {/* User Profile */}
-              <div className="hidden sm:flex items-center gap-3 pl-2 cursor-pointer group">
+              <div 
+                onClick={() => handleSidebarNavigation("profile")}
+                className="hidden sm:flex items-center gap-3 pl-2 cursor-pointer group"
+              >
                 <div className="text-right hidden sm:block">
                   <div className="text-sm font-bold text-white group-hover:text-teal-400 transition-colors">
                     {currentUser?.name || "User"}
@@ -262,7 +309,11 @@ const App: React.FC = () => {
                     {currentUser?.userType || "Admin"}
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 border border-white/10 shadow-md group-hover:shadow-[0_0_15px_rgba(20,184,166,0.3)] transition-all"></div>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 border border-white/10 shadow-md group-hover:shadow-[0_0_15px_rgba(20,184,166,0.3)] transition-all flex items-center justify-center">
+                  <span className="text-xs font-bold text-white/90">
+                    {(currentUser?.name || 'User').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+                  </span>
+                </div>
               </div>
             </div>
           </header>
@@ -308,7 +359,15 @@ const App: React.FC = () => {
                 />
 
                 <Route path="/admin/dashboard" element={<Dashboard />} />
+                <Route path="/admin/audit-logs" element={<AuditLogs />} />
+                <Route path="/admin/tests" element={<Tests />} />
+                <Route path="/admin/enquiries" element={<Enquiries />} />
+                <Route path="/admin/orders" element={<Orders />} />
+                <Route path="/admin/retention" element={<Retention />} />
                 <Route path="/admin/chat" element={<Chat />} />
+                <Route path="/admin/users" element={<Users />} />
+                <Route path="/admin/role-management" element={<RoleManagement />} />
+                <Route path="/admin/profile" element={<Profile />} />
 
                 <Route
                   path="/admin/automations"
@@ -337,7 +396,9 @@ const App: React.FC = () => {
                 <Route path="/admin/segments" element={<Segments />} />
                 <Route path="/admin/settings" element={<Settings />} />
                 <Route path="/admin/live-orders" element={<LiveOrders />} />
+                <Route path="/admin/live-orders/journey" element={<CustomerJourney />} />
                 <Route path="/admin/menu-items" element={<MenuItems />} />
+                <Route path="/admin/hold-items" element={<HoldItems />} />
                 <Route path="/admin/modifiers" element={<Modifiers />} />
                 <Route path="/admin/menus" element={<Menus />} />
                 <Route path="/admin/categories" element={<Categories />} />

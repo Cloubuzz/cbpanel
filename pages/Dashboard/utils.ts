@@ -2,6 +2,14 @@ export const getDateRange = (filter: string): { startDate: string; endDate: stri
   const today = new Date();
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
+  // Custom Range: encoded as "Custom Range:2025-01-01:2025-01-31"
+  if (filter.startsWith('Custom Range:')) {
+    const parts = filter.split(':');
+    if (parts.length === 3) {
+      return { startDate: parts[1], endDate: parts[2] };
+    }
+  }
+
   switch (filter) {
     case 'Yesterday': {
       const y = new Date(today);

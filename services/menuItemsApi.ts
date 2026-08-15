@@ -1,4 +1,4 @@
-import { requestJson } from '../lib/httpClient';
+import { requestJson, getApiUrl } from '../lib/httpClient';
 
 export interface ApiMenuItem {
   MenuID: number;
@@ -53,8 +53,10 @@ interface MenuItemsApiResponse {
 export interface FetchMenuItemsOptions {
   page?: number;
   pageSize?: number;
-  onlyActive?: boolean;
+  onlyActive?: string;
   categoryId?: number;
+  searchTerm?: string;
+  includeSizes?: boolean;
 }
 
 export interface ToppingTemplate {
@@ -181,10 +183,12 @@ export const fetchMenuItems = async (
   token: string,
   options: FetchMenuItemsOptions = {},
 ): Promise<ApiMenuItem[]> => {
-  const { page = 1, pageSize = 50, onlyActive, categoryId } = options;
+  const { page = 1, pageSize = 50, onlyActive, categoryId, searchTerm, includeSizes } = options;
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
   if (onlyActive !== undefined) params.set('onlyActive', String(onlyActive));
   if (categoryId !== undefined) params.set('categoryId', String(categoryId));
+  if (searchTerm) params.set('searchTerm', searchTerm);
+  if (includeSizes !== undefined) params.set('includeSizes', String(includeSizes));
 
   const response = await adminGet<MenuItemsApiResponse>(token, `menu/items/list`, params);
 
@@ -316,7 +320,7 @@ export const uploadToppingImage = async (token: string, file: File): Promise<str
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_BASE_PATH}/topping/upload`, {
+  const response = await fetch(getApiUrl(`${API_BASE_PATH}/topping/upload`), {
     method: 'POST',
     headers: { accept: '*/*', Authorization: `Bearer ${token}` },
     body: formData,

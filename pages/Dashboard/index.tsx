@@ -9,10 +9,13 @@ import { HourlyPerformanceChart } from './components/HourlyPerformanceChart';
 import { TopSellingChart } from './components/TopSellingChart';
 import { OrderChannelsChart } from './components/OrderChannelsChart';
 import { PaymentSplitChart } from './components/PaymentSplitChart';
-import { CustomerLoyaltyChart } from './components/CustomerLoyaltyChart';
 import { OrderFulfillmentChart } from './components/OrderFulfillmentChart';
 import { AOVChart } from './components/AOVChart';
 import { BranchPerformanceTable } from './components/BranchPerformanceTable';
+import { SalesByCityChart } from './components/SalesByCityChart';
+import { TopDeliveryAreasChart } from './components/TopDeliveryAreasChart';
+import { ProductCombosChart } from './components/ProductCombosChart';
+import { CustomerJourneyChart } from './components/CustomerJourneyChart';
 import { fetchOutletList, type OutletListItem } from '../../services/outletsApi';
 
 export const Dashboard: React.FC = () => {
@@ -31,7 +34,7 @@ export const Dashboard: React.FC = () => {
   const { chartStatus, loadChart, refreshChart, kpiLoading, ...data } = useDashboardData(token, dateFilter, selectedBranchId);
 
   return (
-    <div className="p-3 md:p-6 space-y-4 animate-fade-in pb-20 bg-slate-50 dark:bg-slate-950 min-h-screen font-sans">
+    <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto min-h-screen font-sans bg-slate-50 dark:bg-slate-950">
       <DashboardHeader
         dateFilter={dateFilter}
         onDateFilterChange={setDateFilter}
@@ -44,9 +47,11 @@ export const Dashboard: React.FC = () => {
       <KPIRow
         salesRevenue={data.salesRevenue}
         salesCount={data.salesCount}
-        customers={data.customers}
         rejectedCount={data.rejectedCount}
         rejectedRevenue={data.rejectedRevenue}
+        aovBox={data.aovBox}
+        successRateBox={data.successRateBox}
+        newOrdersBox={data.newOrdersBox}
         isLoading={kpiLoading}
       />
 
@@ -79,7 +84,7 @@ export const Dashboard: React.FC = () => {
           onLoad={() => loadChart('orderChannels')}
           onRefresh={() => refreshChart('orderChannels')}
           title="Order Channels"
-          colSpan="lg:col-span-4"
+          colSpan="lg:col-span-3"
         >
           <OrderChannelsChart data={data.orderChannels} isLoading={chartStatus.orderChannels === 'loading'} />
         </ChartLoadGate>
@@ -89,19 +94,19 @@ export const Dashboard: React.FC = () => {
           onLoad={() => loadChart('paymentSplit')}
           onRefresh={() => refreshChart('paymentSplit')}
           title="Payment Split"
-          colSpan="lg:col-span-4"
+          colSpan="lg:col-span-3"
         >
           <PaymentSplitChart data={data.paymentSplit} isLoading={chartStatus.paymentSplit === 'loading'} />
         </ChartLoadGate>
 
         <ChartLoadGate
-          status={chartStatus.customerLoyalty}
-          onLoad={() => loadChart('customerLoyalty')}
-          onRefresh={() => refreshChart('customerLoyalty')}
-          title="Customer Loyalty"
-          colSpan="lg:col-span-4"
+          status={chartStatus.salesByCity}
+          onLoad={() => loadChart('salesByCity')}
+          onRefresh={() => refreshChart('salesByCity')}
+          title="Sales By City"
+          colSpan="lg:col-span-3"
         >
-          <CustomerLoyaltyChart data={data.customerLoyalty} isLoading={chartStatus.customerLoyalty === 'loading'} />
+          <SalesByCityChart data={data.salesByCity} isLoading={chartStatus.salesByCity === 'loading'} />
         </ChartLoadGate>
 
         <ChartLoadGate
@@ -109,9 +114,39 @@ export const Dashboard: React.FC = () => {
           onLoad={() => loadChart('orderFulfillment')}
           onRefresh={() => refreshChart('orderFulfillment')}
           title="Order Fulfillment"
-          colSpan="lg:col-span-4"
+          colSpan="lg:col-span-3"
         >
           <OrderFulfillmentChart data={data.orderFulfillment} isLoading={chartStatus.orderFulfillment === 'loading'} />
+        </ChartLoadGate>
+
+        <ChartLoadGate
+          status={chartStatus.topDeliveryAreas}
+          onLoad={() => loadChart('topDeliveryAreas')}
+          onRefresh={() => refreshChart('topDeliveryAreas')}
+          title="Top Delivery Areas"
+          colSpan="lg:col-span-4"
+        >
+          <TopDeliveryAreasChart data={data.topDeliveryAreas} isLoading={chartStatus.topDeliveryAreas === 'loading'} />
+        </ChartLoadGate>
+
+        <ChartLoadGate
+          status={chartStatus.productCombos}
+          onLoad={() => loadChart('productCombos')}
+          onRefresh={() => refreshChart('productCombos')}
+          title="Frequently Bought Together"
+          colSpan="lg:col-span-4"
+        >
+          <ProductCombosChart data={data.productCombos} isLoading={chartStatus.productCombos === 'loading'} />
+        </ChartLoadGate>
+
+        <ChartLoadGate
+          status={chartStatus.customerJourney}
+          onLoad={() => loadChart('customerJourney')}
+          onRefresh={() => refreshChart('customerJourney')}
+          title="Customer Journey"
+          colSpan="lg:col-span-4"
+        >
+          <CustomerJourneyChart data={data.customerJourney} isLoading={chartStatus.customerJourney === 'loading'} />
         </ChartLoadGate>
 
         <ChartLoadGate
@@ -119,7 +154,7 @@ export const Dashboard: React.FC = () => {
           onLoad={() => loadChart('aov')}
           onRefresh={() => refreshChart('aov')}
           title="Average Order Value (AOV)"
-          colSpan="lg:col-span-8"
+          colSpan="lg:col-span-12"
           height="h-[200px]"
         >
           <AOVChart data={data.aovData} isLoading={chartStatus.aov === 'loading'} />

@@ -16,16 +16,16 @@ export const BranchPerformanceTable: React.FC<Props> = ({ data, isLoading }) => 
         <button className="px-2 py-1 bg-teal-600 rounded text-[10px] font-bold text-white">Monthly</button>
       </div>
     </div>
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
-            <th className="pb-3">Branch</th>
-            <th className="pb-3">Revenue</th>
-            <th className="pb-3">Growth</th>
-            <th className="pb-3">Rating</th>
-            <th className="pb-3">Status</th>
-            <th className="pb-3 text-right">Action</th>
+    <div className="overflow-auto max-h-[350px] pr-1 custom-scrollbar">
+      <table className="w-full text-left relative border-collapse">
+        <thead className="sticky top-0 z-10 bg-white dark:bg-[#0f172a]">
+          <tr className="text-[9px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#0f172a]">
+            <th className="py-3 bg-white dark:bg-[#0f172a]">Branch</th>
+            <th className="py-3 bg-white dark:bg-[#0f172a]">Revenue</th>
+            <th className="py-3 bg-white dark:bg-[#0f172a]">Growth</th>
+            <th className="py-3 bg-white dark:bg-[#0f172a]">Rating</th>
+            <th className="py-3 bg-white dark:bg-[#0f172a]">Status</th>
+            <th className="py-3 text-right bg-white dark:bg-[#0f172a]">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50 dark:divide-slate-900">

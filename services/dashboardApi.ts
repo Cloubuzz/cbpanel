@@ -88,6 +88,12 @@ export interface DashboardOrderFulfillment {
   percentage: number;
 }
 
+export interface DashboardCustomerJourneyItem {
+  step: string;
+  count: number;
+  percentage: number;
+}
+
 export interface DashboardPaymentSplit {
   paymenttype: string;
   total_sales: number;
@@ -142,6 +148,9 @@ export const fetchDashboardOrderChannels = (token: string, opts: FetchDashboardO
 export const fetchDashboardOrderFulfillment = (token: string, opts: FetchDashboardOptions) =>
   fetchDashboard<DashboardOrderFulfillment>(token, 'DashboardNewAdmin_OrderFulfillment', opts);
 
+export const fetchDashboardCustomerJourney = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardCustomerJourneyItem>(token, 'DashboardNewAdmin_CustomerJourney', opts);
+
 export const fetchDashboardPaymentSplit = (token: string, opts: FetchDashboardOptions) =>
   fetchDashboard<DashboardPaymentSplit>(token, 'DashboardNewAdmin_PaymentSplit', opts);
 
@@ -158,7 +167,62 @@ export interface DashboardAOV {
   'DATE(created)': string;
   order_date: string;
   avg_order_value: number;
+  DailyRevenue?: number;
+  DailyOrders?: number;
 }
 
 export const fetchDashboardAOV = (token: string, opts: FetchDashboardOptions) =>
   fetchDashboard<DashboardAOV>(token, 'DashboardNewAdmin_AOV', opts);
+
+export interface DashboardSalesByCity {
+  City: string;
+  TotalSales: number;
+  Percentage: number;
+}
+
+export const fetchDashboardSalesByCity = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardSalesByCity>(token, 'DashboardNewAdmin_SalesByCity', opts);
+
+export interface DashboardTopDeliveryArea {
+  UserArea: string;
+  TotalSales: number;
+  TotalOrders: number;
+}
+
+export const fetchDashboardTopDeliveryAreas = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardTopDeliveryArea>(token, 'DashboardNewAdmin_TopDeliveryAreas', opts);
+
+export interface DashboardProductCombo {
+  ProductCombo: string;
+  ComboCount: number;
+}
+
+export const fetchDashboardProductCombos = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardProductCombo>(token, 'DashboardNewAdmin_ProductCombos', opts);
+
+export interface DashboardAOVBox {
+  TotalAOV: number;
+  PreviousAOV: number;
+  ChangePercent: number | Record<string, never>;
+}
+
+export interface DashboardSuccessRateBox {
+  SuccessRate: number;
+  PreviousSuccessRate: number;
+  ChangePercent: number | Record<string, never>;
+}
+
+export interface DashboardNewOrdersBox {
+  NewOrdersPercent: number;
+  PreviousNewOrdersPercent: number;
+  ChangePercent: number | Record<string, never>;
+}
+
+export const fetchDashboardAOVBox = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardAOVBox>(token, 'DashboardNewAdmin_AOVBox', opts).then(d => d[0] ?? null);
+
+export const fetchDashboardSuccessRateBox = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardSuccessRateBox>(token, 'DashboardNewAdmin_SuccessRateBox', opts).then(d => d[0] ?? null);
+
+export const fetchDashboardNewOrdersBox = (token: string, opts: FetchDashboardOptions) =>
+  fetchDashboard<DashboardNewOrdersBox>(token, 'DashboardNewAdmin_NewOrdersBox', opts).then(d => d[0] ?? null);

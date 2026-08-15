@@ -135,8 +135,8 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ onBack }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [channelFilter, setChannelFilter] = useState('All');
   const today = new Date();
-  const [startDate, setStartDate] = useState(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30)));
-  const [endDate, setEndDate] = useState(formatLocalDate(today));
+  const [startDate, setStartDate] = useState(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)));
+  const [endDate, setEndDate] = useState(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)));
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -345,7 +345,7 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ onBack }) => {
   const availableValues: PivotValue[] = pivotValueOptions;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div className="flex items-center gap-4">
@@ -447,8 +447,8 @@ export const ReportDetail: React.FC<ReportDetailProps> = ({ onBack }) => {
               onClick={() => {
                 setSearchQuery('');
                 setChannelFilter('All');
-                setStartDate(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30)));
-                setEndDate(formatLocalDate(today));
+                setStartDate(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 7)));
+                setEndDate(formatLocalDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)));
               }}
               className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-xl text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
             >

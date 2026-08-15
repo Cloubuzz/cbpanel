@@ -25,12 +25,55 @@ export const AOVChart: React.FC<Props> = ({ data, isLoading }) => {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b8" strokeOpacity={0.1} />
-              <XAxis dataKey="order_date" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} />
+              <XAxis 
+                dataKey="DATE(created)" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fill: '#64748b', fontSize: 10 }}
+                tickFormatter={(tick) => {
+                  const found = data.find(item => item['DATE(created)'] === tick);
+                  return found ? found.order_date : tick;
+                }}
+              />
               <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10 }} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
               <Tooltip
                 cursor={{ fill: 'transparent' }}
-                contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '11px' }}
-                formatter={(value: number) => [`RS ${value.toFixed(0)}`, 'Avg Order Value']}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const item = payload[0].payload as any;
+                    const aov = item.avg_order_value || 0;
+                    const revenue = item.DailyRevenue || 0;
+                    const orders = item.DailyOrders || 0;
+                    
+                    let dateStr = label;
+                    try {
+                      const d = new Date(label);
+                      dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                    } catch {}
+
+                    return (
+                      <div className="bg-slate-900 dark:bg-slate-950 border border-slate-800 rounded-xl p-3 shadow-lg text-[11px] space-y-1.5 text-white min-w-[160px]">
+                        <p className="font-bold text-[9px] text-slate-400 uppercase tracking-wider mb-1">
+                          {dateStr}
+                        </p>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-slate-400">Avg Order Value:</span>
+                          <span className="font-bold text-teal-400">Rs {Math.round(aov).toLocaleString()}</span>
+                        </div>
+                        <div className="border-t border-slate-800 my-1" />
+                        <div className="flex justify-between gap-4">
+                          <span className="text-slate-400">Total Sales:</span>
+                          <span className="font-semibold text-slate-200">Rs {Math.round(revenue).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between gap-4">
+                          <span className="text-slate-400">Total Orders:</span>
+                          <span className="font-semibold text-slate-200">{orders.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
               />
               <Bar dataKey="avg_order_value" radius={[4, 4, 0, 0]} barSize={40}>
                 {data.map((entry, i) => (

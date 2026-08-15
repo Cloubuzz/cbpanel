@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ShoppingBag, RefreshCw, AlertCircle } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../../store/hooks';
 import {
@@ -27,7 +28,7 @@ import {
   selectOutletsError,
   selectProcessing,
 } from '../../store/selectors/ordersSelectors';
-import type { OrderTab, Outlet, ProcessOrderPayload } from '../../services/ordersApi';
+import type { OrderTab, Outlet, ProcessOrderPayload, RawOrder } from '../../services/ordersApi';
 import { StatusRail } from './components/StatusRail';
 import { OrderListPanel } from './components/OrderListPanel';
 import { OrderDetailHeader } from './components/OrderDetailHeader';
@@ -57,6 +58,18 @@ export const LiveOrders: React.FC = () => {
   const outletsLoading  = useAppSelector(selectOutletsLoading);
   const outletsError    = useAppSelector(selectOutletsError);
   const isProcessing    = useAppSelector(selectProcessing);
+
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId');
+    if (orderIdParam) {
+      const parsedId = parseInt(orderIdParam, 10);
+      if (!isNaN(parsedId) && parsedId !== selectedOrderId) {
+        dispatch(setSelectedOrderId(parsedId));
+      }
+    }
+  }, [searchParams, selectedOrderId, dispatch]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState<{ show: boolean; type: 'Accept' | 'Reject' | null }>({ show: false, type: null });
@@ -104,7 +117,21 @@ export const LiveOrders: React.FC = () => {
     );
   });
 
-  const selectedOrder = currentOrders.find((o) => o.ID === selectedOrderId) ?? currentOrders[0] ?? null;
+  const selectedOrder = currentOrders.find((o) => o.ID === selectedOrderId)
+    ?? (orderDetail && orderDetail.order.OrderID === selectedOrderId ? {
+        ID: orderDetail.order.OrderID,
+        CustomerName: orderDetail.order.CustomerName,
+        CustomerMobile: orderDetail.order.CustomerPhone,
+        OrderAmount: orderDetail.order.GrandTotal,
+        Status: orderDetail.order.Status,
+        OrderType: orderDetail.order.OrderType as 'Delivery' | 'Pick Up',
+        PaymentType: orderDetail.payment.Type,
+        Created: orderDetail.order.OrderDateTime,
+        outletid: 0,
+        Branch: orderDetail.order.OutletName
+       } as RawOrder : null)
+    ?? currentOrders[0]
+    ?? null;
 
   const buildPayload = useCallback((overrides: Partial<ProcessOrderPayload>): ProcessOrderPayload => ({
     orderID: selectedOrder?.ID ?? 0,

@@ -245,7 +245,7 @@ export const HelpDesk: React.FC = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="max-w-5xl mx-auto space-y-8">
+          <div className="w-full space-y-8">
 
             {/* Bento Metadata Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

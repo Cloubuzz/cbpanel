@@ -31,6 +31,15 @@ const VIEW_PATH_MAP: Record<View, string> = {
   discounts: "/admin/discounts",
   marketing: "/admin/campaigns",
   "help-desk": "/admin/help-desk",
+  "audit-logs": "/admin/audit-logs",
+  tests: "/admin/tests",
+  enquiries: "/admin/enquiries",
+  orders: "/admin/orders",
+  retention: "/admin/retention",
+  "hold-items": "/admin/hold-items",
+  users: "/admin/users",
+  "role-management": "/admin/role-management",
+  profile: "/admin/profile",
 };
 
 const STATIC_ADMIN_PATHS = new Set<string>([
@@ -46,6 +55,7 @@ const STATIC_ADMIN_PATHS = new Set<string>([
   "/admin/segments",
   "/admin/settings",
   "/admin/live-orders",
+  "/admin/live-orders/journey",
   "/admin/menu-items",
   "/admin/modifiers",
   "/admin/menus",
@@ -59,6 +69,16 @@ const STATIC_ADMIN_PATHS = new Set<string>([
   "/admin/reports",
   "/admin/reports/detail",
   "/admin/help-desk",
+  "/admin/audit-logs",
+  "/admin/tests",
+  "/admin/enquiries",
+  "/admin/orders",
+  "/admin/retention",
+  "/admin/hold-items",
+  "/admin/users",
+  "/admin/users/new",
+  "/admin/role-management",
+  "/admin/profile",
 ]);
 
 const trimTrailingSlash = (path: string): string => {
@@ -111,6 +131,16 @@ export const getViewFromPath = (pathname: string): View => {
   )
     return "reports";
   if (normalized === "/admin/help-desk") return "help-desk";
+  if (normalized === "/admin/audit-logs") return "audit-logs";
+  if (normalized === "/admin/tests") return "tests";
+  if (normalized === "/admin/enquiries") return "enquiries";
+  if (normalized === "/admin/orders") return "orders";
+  if (normalized === "/admin/retention") return "retention";
+  if (normalized === "/admin/hold-items") return "hold-items";
+  if (normalized === "/admin/users" || normalized.startsWith("/admin/users/"))
+    return "users";
+  if (normalized === "/admin/role-management") return "role-management";
+  if (normalized === "/admin/profile") return "profile";
 
   return "launchpad";
 };
@@ -139,6 +169,10 @@ export const normalizeLandingPath = (landingPage?: string | null): string => {
   }
 
   if (normalized.startsWith("/admin/blogs/")) {
+    return normalized;
+  }
+
+  if (normalized.startsWith("/admin/users/")) {
     return normalized;
   }
 

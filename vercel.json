@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/adminapi/:path*",
-      "destination": "https://adminapi-pizzamax.cloubuzz.com/adminapi/:path*"
+      "destination": "https://adminapi.broadwaypizza.com.pk/adminapi/:path*"
     },
     {
       "source": "/(.*)",

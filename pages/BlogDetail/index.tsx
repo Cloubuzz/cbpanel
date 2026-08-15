@@ -172,10 +172,10 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ id, onBack }) => {
           </div>
           <div className="flex flex-col">
             <span className="text-[12px] text-[#202124] dark:text-[#bdc1c6] font-medium leading-tight">
-              Cloubuzz
+              Broadway Pizza
             </span>
             <span className="text-[11px] text-[#5f6368] dark:text-[#9aa0a6] leading-tight">
-              https://cloubuzz.com › blog › {formData.slug || "your-post"}
+              https://broadwaypizza.com.pk › blog › {formData.slug || "your-post"}
             </span>
           </div>
         </div>
@@ -203,7 +203,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ id, onBack }) => {
 
   if (isFetching) {
     return (
-      <div className="p-8 max-w-7xl mx-auto space-y-6 animate-pulse">
+      <div className="p-8 w-full space-y-6 animate-pulse">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800" />
           <div className="space-y-2">
@@ -218,7 +218,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ id, onBack }) => {
 
   if (fetchError) {
     return (
-      <div className="p-8 max-w-7xl mx-auto flex flex-col items-center justify-center py-32 gap-4">
+      <div className="p-8 w-full flex flex-col items-center justify-center py-32 gap-4">
         <div className="w-16 h-16 bg-rose-50 dark:bg-rose-950/30 rounded-[24px] border-2 border-rose-100 dark:border-rose-900/50 flex items-center justify-center">
           <AlertCircle size={28} className="text-rose-500" />
         </div>
@@ -231,7 +231,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ id, onBack }) => {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
@@ -488,7 +488,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ id, onBack }) => {
                         </label>
                         <div className="flex items-center px-5 py-4 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-inner">
                           <span className="text-slate-400 text-xs font-bold mr-1">
-                            cloubuzz.com/
+                            broadwaypizza.com.pk/
                           </span>
                           <input
                             type="text"

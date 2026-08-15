@@ -588,7 +588,7 @@ export const EmailManager: React.FC = () => {
   if (view === 'list') {
     return (
       <div className="p-8 bg-slate-50 dark:bg-slate-950 min-h-[calc(100vh-80px)] overflow-y-auto">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Email Templates</h1>

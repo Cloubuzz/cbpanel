@@ -2,26 +2,36 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   fetchDashboardSalesRevenue,
   fetchDashboardSalesCount,
-  fetchDashboardCustomers,
   fetchDashboardRejectedCount,
   fetchDashboardRejectedRevenue,
   fetchDashboardHourlyPerformance,
   fetchDashboardOrderChannels,
   fetchDashboardOrderFulfillment,
   fetchDashboardPaymentSplit,
-  fetchDashboardCustomerLoyalty,
   fetchDashboardBranchPerformance,
   fetchDashboardTopSelling,
   fetchDashboardAOV,
+  fetchDashboardSalesByCity,
+  fetchDashboardTopDeliveryAreas,
+  fetchDashboardProductCombos,
+  fetchDashboardAOVBox,
+  fetchDashboardSuccessRateBox,
+  fetchDashboardNewOrdersBox,
+  fetchDashboardCustomerJourney,
   type DashboardSalesRevenue,
   type DashboardSalesCount,
-  type DashboardCustomers,
   type DashboardRejectedCount,
   type DashboardRejectedRevenue,
   type DashboardHourlyPerformance,
   type DashboardBranchPerformance,
   type DashboardTopSellingItem,
   type DashboardAOV,
+  type DashboardTopDeliveryArea,
+  type DashboardProductCombo,
+  type DashboardAOVBox,
+  type DashboardSuccessRateBox,
+  type DashboardNewOrdersBox,
+  type DashboardCustomerJourneyItem,
 } from '../../../services/dashboardApi';
 import { CHART_COLORS, getFulfillmentColor } from '../constants';
 import { getDateRange } from '../utils';
@@ -39,27 +49,26 @@ export interface FulfillmentItem {
   fill: string;
 }
 
-export interface CustomerLoyaltyItem {
-  month: string;
-  new: number;
-  repeat: number;
-}
-
 export type ChartName =
   | 'hourly'
   | 'topSelling'
   | 'orderChannels'
   | 'paymentSplit'
-  | 'customerLoyalty'
   | 'orderFulfillment'
   | 'aov'
-  | 'branchPerformance';
+  | 'branchPerformance'
+  | 'salesByCity'
+  | 'topDeliveryAreas'
+  | 'productCombos'
+  | 'customerJourney';
 
 export type ChartStatus = 'idle' | 'loading' | 'loaded';
 
 const ALL_CHARTS: ChartName[] = [
   'hourly', 'topSelling', 'orderChannels', 'paymentSplit',
-  'customerLoyalty', 'orderFulfillment', 'aov', 'branchPerformance',
+  'orderFulfillment', 'aov', 'branchPerformance',
+  'salesByCity', 'topDeliveryAreas', 'productCombos',
+  'customerJourney',
 ];
 
 const initialChartStatus = (): Record<ChartName, ChartStatus> =>
@@ -69,19 +78,24 @@ export interface DashboardState {
   // KPI — auto-fetched
   salesRevenue: DashboardSalesRevenue | null;
   salesCount: DashboardSalesCount | null;
-  customers: DashboardCustomers | null;
   rejectedCount: DashboardRejectedCount | null;
   rejectedRevenue: DashboardRejectedRevenue | null;
+  aovBox: DashboardAOVBox | null;
+  successRateBox: DashboardSuccessRateBox | null;
+  newOrdersBox: DashboardNewOrdersBox | null;
   kpiLoading: boolean;
   // Charts — on-demand
   hourlyData: DashboardHourlyPerformance[];
   orderChannels: ChartItem[];
   paymentSplit: ChartItem[];
-  customerLoyalty: CustomerLoyaltyItem[];
   orderFulfillment: FulfillmentItem[];
   branchPerformance: DashboardBranchPerformance[];
   topSelling: DashboardTopSellingItem[];
   aovData: DashboardAOV[];
+  salesByCity: ChartItem[];
+  topDeliveryAreas: DashboardTopDeliveryArea[];
+  productCombos: DashboardProductCombo[];
+  customerJourney: DashboardCustomerJourneyItem[];
   // Chart control
   chartStatus: Record<ChartName, ChartStatus>;
   loadChart: (name: ChartName) => void;
@@ -97,20 +111,25 @@ export const useDashboardData = (
   const [kpiLoading, setKpiLoading] = useState(false);
   const [salesRevenue, setSalesRevenue] = useState<DashboardSalesRevenue | null>(null);
   const [salesCount, setSalesCount] = useState<DashboardSalesCount | null>(null);
-  const [customers, setCustomers] = useState<DashboardCustomers | null>(null);
   const [rejectedCount, setRejectedCount] = useState<DashboardRejectedCount | null>(null);
   const [rejectedRevenue, setRejectedRevenue] = useState<DashboardRejectedRevenue | null>(null);
+  const [aovBox, setAovBox] = useState<DashboardAOVBox | null>(null);
+  const [successRateBox, setSuccessRateBox] = useState<DashboardSuccessRateBox | null>(null);
+  const [newOrdersBox, setNewOrdersBox] = useState<DashboardNewOrdersBox | null>(null);
 
   // --- Chart state ---
   const [chartStatus, setChartStatus] = useState<Record<ChartName, ChartStatus>>(initialChartStatus);
   const [hourlyData, setHourlyData] = useState<DashboardHourlyPerformance[]>([]);
   const [orderChannels, setOrderChannels] = useState<ChartItem[]>([]);
   const [paymentSplit, setPaymentSplit] = useState<ChartItem[]>([]);
-  const [customerLoyalty, setCustomerLoyalty] = useState<CustomerLoyaltyItem[]>([]);
   const [orderFulfillment, setOrderFulfillment] = useState<FulfillmentItem[]>([]);
   const [branchPerformance, setBranchPerformance] = useState<DashboardBranchPerformance[]>([]);
   const [topSelling, setTopSelling] = useState<DashboardTopSellingItem[]>([]);
   const [aovData, setAovData] = useState<DashboardAOV[]>([]);
+  const [salesByCity, setSalesByCity] = useState<ChartItem[]>([]);
+  const [topDeliveryAreas, setTopDeliveryAreas] = useState<DashboardTopDeliveryArea[]>([]);
+  const [productCombos, setProductCombos] = useState<DashboardProductCombo[]>([]);
+  const [customerJourney, setCustomerJourney] = useState<DashboardCustomerJourneyItem[]>([]);
 
   // Ref so the loadChart callback always uses latest token/dateFilter/branchId
   const optsRef = useRef({ ...getDateRange(dateFilter), branchId: branchId ?? undefined });
@@ -135,14 +154,17 @@ export const useDashboardData = (
       paymentSplit: () => fetchDashboardPaymentSplit(t, opts)
         .then(d => setPaymentSplit(d.map((item, i) => ({ name: item.paymenttype, value: item.percentage, fill: CHART_COLORS[i % CHART_COLORS.length], totalSale: item.total_sales }))))
         .catch(() => setPaymentSplit([])),
-      customerLoyalty: () => fetchDashboardCustomerLoyalty(t, opts)
-        .then(d => setCustomerLoyalty(d.map(item => ({ month: item.month_name.slice(0, 3), new: item.new_customers, repeat: item.returning_customers }))))
-        .catch(() => setCustomerLoyalty([])),
       orderFulfillment: () => fetchDashboardOrderFulfillment(t, opts)
         .then(d => setOrderFulfillment(d.map(item => ({ name: item.STATUS, value: item.percentage, fill: getFulfillmentColor(item.STATUS) }))))
         .catch(() => setOrderFulfillment([])),
       aov: () => fetchDashboardAOV(t, opts).then(setAovData).catch(() => setAovData([])),
-      branchPerformance: () => fetchDashboardBranchPerformance(t, { ...opts, pageSize: 5 }).then(setBranchPerformance).catch(() => setBranchPerformance([])),
+      branchPerformance: () => fetchDashboardBranchPerformance(t, { ...opts, pageSize: 200 }).then(setBranchPerformance).catch(() => setBranchPerformance([])),
+      salesByCity: () => fetchDashboardSalesByCity(t, opts)
+        .then(d => setSalesByCity(d.map((item, i) => ({ name: item.City, value: item.Percentage, fill: CHART_COLORS[i % CHART_COLORS.length], totalSale: item.TotalSales }))))
+        .catch(() => setSalesByCity([])),
+      topDeliveryAreas: () => fetchDashboardTopDeliveryAreas(t, opts).then(setTopDeliveryAreas).catch(() => setTopDeliveryAreas([])),
+      productCombos: () => fetchDashboardProductCombos(t, opts).then(setProductCombos).catch(() => setProductCombos([])),
+      customerJourney: () => fetchDashboardCustomerJourney(t, opts).then(setCustomerJourney).catch(() => setCustomerJourney([])),
     };
 
     return map[name]();
@@ -178,9 +200,11 @@ export const useDashboardData = (
     Promise.allSettled([
       fetchDashboardSalesRevenue(token, opts).then(setSalesRevenue).catch(() => setSalesRevenue(null)),
       fetchDashboardSalesCount(token, opts).then(setSalesCount).catch(() => setSalesCount(null)),
-      fetchDashboardCustomers(token, opts).then(setCustomers).catch(() => setCustomers(null)),
       fetchDashboardRejectedCount(token, opts).then(setRejectedCount).catch(() => setRejectedCount(null)),
       fetchDashboardRejectedRevenue(token, opts).then(setRejectedRevenue).catch(() => setRejectedRevenue(null)),
+      fetchDashboardAOVBox(token, opts).then(setAovBox).catch(() => setAovBox(null)),
+      fetchDashboardSuccessRateBox(token, opts).then(setSuccessRateBox).catch(() => setSuccessRateBox(null)),
+      fetchDashboardNewOrdersBox(token, opts).then(setNewOrdersBox).catch(() => setNewOrdersBox(null)),
     ]).finally(() => setKpiLoading(false));
   }, [token, dateFilter, branchId]);
 
@@ -208,9 +232,11 @@ export const useDashboardData = (
   }, [dateFilter, branchId]);
 
   return {
-    salesRevenue, salesCount, customers, rejectedCount, rejectedRevenue, kpiLoading,
-    hourlyData, orderChannels, paymentSplit, customerLoyalty, orderFulfillment,
+    salesRevenue, salesCount, rejectedCount, rejectedRevenue,
+    aovBox, successRateBox, newOrdersBox, kpiLoading,
+    hourlyData, orderChannels, paymentSplit, orderFulfillment,
     branchPerformance, topSelling, aovData,
+    salesByCity, topDeliveryAreas, productCombos, customerJourney,
     chartStatus, loadChart, refreshChart,
   };
 };

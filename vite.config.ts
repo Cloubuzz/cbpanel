@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/adminapi': {
-        target: 'https://adminapi-pizzamax.cloubuzz.com',
+        target: 'https://adminapi.broadwaypizza.com.pk',
         changeOrigin: true,
         secure: false,
       },

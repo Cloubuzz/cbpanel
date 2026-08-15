@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Search, LogOut, Bell, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import { NAV_ITEMS } from "../../constants";
+import { NAV_ITEMS, DEFAULT_ROLE_MODULES } from "../../constants";
 import { View } from "../../types";
 import { AuthUser } from "../../services/authApi";
 
@@ -24,6 +24,32 @@ export const Launchpad: React.FC<LaunchpadProps> = ({
   currentUser,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    const handleChanged = () => setVersion((v) => v + 1);
+    window.addEventListener("role_modules_changed", handleChanged);
+    return () => window.removeEventListener("role_modules_changed", handleChanged);
+  }, []);
+
+  const allowedModules = useMemo(() => {
+    if (!currentUser) return [];
+    const role = (currentUser.userType || "Admin").toLowerCase();
+    try {
+      const stored = localStorage.getItem("pizzamax_role_modules");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed[role]) {
+          return parsed[role].map((m: string) => m.toLowerCase());
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse role modules in launchpad:", e);
+    }
+    
+    const defaults = DEFAULT_ROLE_MODULES[role] || DEFAULT_ROLE_MODULES["admin"] || [];
+    return defaults.map((m) => m.toLowerCase());
+  }, [currentUser, version]);
 
   const allModules = useMemo(() => {
     const modules: ModuleItem[] = [];
@@ -31,32 +57,45 @@ export const Launchpad: React.FC<LaunchpadProps> = ({
     NAV_ITEMS.forEach((item) => {
       if (item.subItems) {
         item.subItems.forEach((sub) => {
-          modules.push({
-            id: sub.id as View,
-            label: sub.label,
-            icon: item.icon,
-            parentLabel: item.label,
-          });
+          if (allowedModules.includes(sub.id.toLowerCase())) {
+            modules.push({
+              id: sub.id as View,
+              label: sub.label,
+              icon: item.icon,
+              parentLabel: item.label,
+            });
+          }
         });
       } else {
-        modules.push({
-          id: item.id as View,
-          label: item.label,
-          icon: item.icon,
-          parentLabel: null,
-        });
+        if (allowedModules.includes(item.id.toLowerCase())) {
+          modules.push({
+            id: item.id as View,
+            label: item.label,
+            icon: item.icon,
+            parentLabel: null,
+          });
+        }
       }
     });
 
     const sortOrder = [
       "dashboard",
+      "retention",
       "live-orders",
+      "orders",
       "categories",
       "menu-items",
       "modifiers",
+      "hold-items",
       "outlets",
       "banners",
       "reports",
+      "audit-logs",
+      "tests",
+      "enquiries",
+      "blogs",
+      "users",
+      "role-management",
     ];
 
     const originalOrder = new Map(modules.map((m, index) => [m.id, index]));
@@ -78,7 +117,7 @@ export const Launchpad: React.FC<LaunchpadProps> = ({
     });
 
     return modules;
-  }, []);
+  }, [allowedModules]);
 
   const filteredModules = useMemo(() => {
     const lowerQuery = searchQuery.toLowerCase();
@@ -158,7 +197,7 @@ export const Launchpad: React.FC<LaunchpadProps> = ({
           </div>
           <div className="hidden sm:block">
             <h1 className="text-white font-bold text-lg leading-tight tracking-tight">
-              Cloubuzz
+              Broadway Pizza
             </h1>
             <p className="text-white/40 text-[10px] uppercase tracking-widest font-medium">
               OS Dashboard
@@ -177,24 +216,23 @@ export const Launchpad: React.FC<LaunchpadProps> = ({
 
             <div className="h-8 w-px bg-white/10 mx-2"></div>
 
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-white">
-                {currentUser?.name
-                  ? currentUser.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                  : "User"}
-              </p>
-              <p className="text-[10px] text-white/40">
-                {currentUser?.userType || "Admin"}
-              </p>
-            </div>
-            <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden relative group cursor-pointer flex items-center justify-center">
-              <span className="text-xs font-bold text-white/80 group-hover:text-white transition-colors">
-                {(currentUser?.name || 'User').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
-              </span>
+            <div 
+              onClick={() => onSelectView("profile")}
+              className="flex items-center gap-3 cursor-pointer group/avatar"
+            >
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-bold text-white group-hover/avatar:text-teal-400 transition-colors">
+                  {currentUser?.name || "User"}
+                </p>
+                <p className="text-[10px] text-white/40">
+                  {currentUser?.userType || "Admin"}
+                </p>
+              </div>
+              <div className="w-9 h-9 rounded-lg bg-slate-800 border border-white/10 overflow-hidden relative flex items-center justify-center group-hover/avatar:border-teal-500/50 transition-colors">
+                <span className="text-xs font-bold text-white/80 group-hover/avatar:text-white transition-colors">
+                  {(currentUser?.name || 'User').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase().slice(0, 2)}
+                </span>
+              </div>
             </div>
             {onLogout && (
               <button

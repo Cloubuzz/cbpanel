@@ -51,7 +51,7 @@ export const Chat: React.FC = () => {
           <div className="w-64 h-64 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center mb-8">
             <img src="https://cdni.iconscout.com/illustration/premium/thumb/web-chat-illustration-download-in-svg-png-gif-file-formats--online-communication-conversation-messaging-business-pack-illustrations-3560757.png" alt="Select Chat" className="w-48 opacity-80 mix-blend-multiply dark:mix-blend-screen" />
           </div>
-          <h2 className="text-3xl font-light text-slate-700 dark:text-slate-200 mb-4">Cloubuzz Web</h2>
+          <h2 className="text-3xl font-light text-slate-700 dark:text-slate-200 mb-4">Broadway Pizza Web</h2>
           <p className="text-slate-500 text-center max-w-md">Send and receive messages without keeping your phone online.<br />Use WhatsApp, SMS, and Email from one console.</p>
         </div>
       )}

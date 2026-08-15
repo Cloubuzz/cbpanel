@@ -45,6 +45,7 @@ import { SortableSizeItem } from './components/SortableSizeItem';
 import type { MenuItem, MenuSize } from './types';
 import { DAYS, PAGE_SIZE } from './constants';
 import { mapMenuItemToAddPayload, mapMenuItemToUpdatePayload, mapApiMenuItem, formatMenuItemImageUrl } from './utils';
+import { HistoryTab } from '../../components/HistoryTab';
 
 export const MenuItems: React.FC = () => {
   const token = useAppSelector(selectToken);
@@ -59,6 +60,8 @@ export const MenuItems: React.FC = () => {
     setFilterCategoryId,
     currentPage,
     setCurrentPage,
+    searchTerm,
+    setSearchTerm,
     modifierGroups,
     loadItems,
   } = useMenuItemsData(token);
@@ -66,13 +69,13 @@ export const MenuItems: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [currentItem, setCurrentItem] = useState<Partial<MenuItem> | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isDraggingPopup, setIsDraggingPopup] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
   const [activeSizeId, setActiveSizeId] = useState<string | null>(null);
   const [modifierSearch, setModifierSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'config' | 'history'>('config');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputPopupRef = useRef<HTMLInputElement>(null);
 
@@ -105,11 +108,13 @@ export const MenuItems: React.FC = () => {
       availableDays: DAYS,
       sizes: [],
     });
+    setActiveTab('config');
     setView('editor');
   };
 
   const handleEdit = async (item: MenuItem) => {
     setCurrentItem(item);
+    setActiveTab('config');
     setView('editor');
     if (token && item.id) {
       try {
@@ -282,15 +287,12 @@ export const MenuItems: React.FC = () => {
     setCurrentItem(prev => ({ ...prev, tags: prev?.tags?.filter(t => t !== tagToRemove) }));
   };
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.categoryID.toString().includes(searchQuery.toLowerCase())
-  );
+  const filteredItems = items;
 
   if (view === 'list') {
     return (
       <div className="p-6 lg:p-10 bg-slate-50 dark:bg-slate-950 min-h-screen">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
             <div>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
@@ -314,7 +316,7 @@ export const MenuItems: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm mb-8 flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-              <input type="text" placeholder="Search by name..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm focus:ring-2 focus:ring-teal-500 transition-all" />
+              <input type="text" placeholder="Search by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl text-sm focus:ring-2 focus:ring-teal-500 transition-all" />
             </div>
             <select value={filterCategoryId === undefined ? '' : String(filterCategoryId)} onChange={(e) => { setFilterCategoryId(e.target.value === '' ? undefined : Number(e.target.value)); setCurrentPage(1); }} className="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 border-none outline-none focus:ring-2 focus:ring-teal-500">
               <option value="">All Categories</option>
@@ -324,8 +326,8 @@ export const MenuItems: React.FC = () => {
                 </option>
               ))}
             </select>
-            <select value={filterOnlyActive === undefined ? '' : String(filterOnlyActive)} onChange={(e) => { setFilterOnlyActive(e.target.value === '' ? undefined : e.target.value === 'true'); setCurrentPage(1); }} className="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 border-none outline-none focus:ring-2 focus:ring-teal-500">
-              <option value="">All Status</option>
+            <select value={filterOnlyActive} onChange={(e) => { setFilterOnlyActive(e.target.value); setCurrentPage(1); }} className="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-sm font-bold text-slate-600 dark:text-slate-300 border-none outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="all">All Status</option>
               <option value="true">Active Only</option>
               <option value="false">Inactive Only</option>
             </select>
@@ -411,31 +413,55 @@ export const MenuItems: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white dark:bg-slate-950 overflow-hidden">
-      <div className="h-20 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 lg:px-10 flex-shrink-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl z-20">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setView('list')} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all text-slate-500">
-            <X size={24} />
-          </button>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{currentItem?.id ? 'Edit Menu Item' : 'New Menu Item'}</h2>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-              {categories.find(c => c.ID === currentItem?.categoryID)?.Name || currentItem?.category || 'General'}
-            </p>
+      <div className="border-b border-slate-200 dark:border-slate-800 flex flex-col px-6 lg:px-10 flex-shrink-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl z-20 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setView('list')} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-all text-slate-500">
+              <X size={24} />
+            </button>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{currentItem?.id ? 'Edit Menu Item' : 'New Menu Item'}</h2>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                {categories.find(c => c.ID === currentItem?.categoryID)?.Name || currentItem?.category || 'General'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {activeTab === 'config' && (
+              <>
+                <button onClick={() => setView('list')} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">Discard</button>
+                <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-8 py-2.5 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-500 transition-all shadow-lg shadow-teal-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSaving ? <div className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
+                  <span>{isSaving ? 'Saving...' : 'Save Item'}</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => setView('list')} className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:text-slate-900 transition-all">Discard</button>
-          <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-8 py-2.5 bg-teal-600 text-white rounded-2xl font-bold hover:bg-teal-500 transition-all shadow-lg shadow-teal-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
-            {isSaving ? <div className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save size={18} />}
-            <span>{isSaving ? 'Saving...' : 'Save Item'}</span>
-          </button>
-        </div>
+
+        {currentItem?.id && (
+          <div className="flex gap-4 border-b border-slate-100 dark:border-slate-800 -mb-4 mt-4">
+            <button
+              onClick={() => setActiveTab('config')}
+              className={`pb-2 px-2 font-bold text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'config' ? 'border-teal-500 text-teal-500' : 'border-transparent text-slate-450 hover:text-slate-650'}`}
+            >
+              Configuration
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`pb-2 px-2 font-bold text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'history' ? 'border-teal-500 text-teal-500' : 'border-transparent text-slate-450 hover:text-slate-650'}`}
+            >
+              History
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
-        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-10">
-          <div className="lg:col-span-2 space-y-10">
-            <section className="space-y-6">
+      {activeTab === 'config' ? (
+        <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+          <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="lg:col-span-2 space-y-10 text-left">
+              <section className="space-y-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-8 h-8 rounded-lg bg-teal-500/10 text-teal-500 flex items-center justify-center"><Info size={18} /></div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Basic Information</h3>
@@ -469,11 +495,13 @@ export const MenuItems: React.FC = () => {
                     className="w-full bg-slate-50 dark:bg-slate-900 border-2 border-transparent focus:border-teal-500 rounded-2xl px-4 py-3 text-sm transition-all outline-none appearance-none font-medium text-slate-900 dark:text-white"
                   >
                     <option value="">Select Category</option>
-                    {categories.map((cat) => (
-                      <option key={cat.ID} value={cat.ID}>
-                        {cat.Name}
-                      </option>
-                    ))}
+                    {categories
+                      .filter(cat => cat.IsActive || cat.ID === currentItem?.categoryID)
+                      .map((cat) => (
+                        <option key={cat.ID} value={cat.ID}>
+                          {cat.Name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
@@ -706,6 +734,13 @@ export const MenuItems: React.FC = () => {
           </div>
         </div>
       </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+          <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-[32px] border border-slate-100 dark:border-slate-800 p-8 shadow-xl">
+            <HistoryTab entityName="MenuItem" entityId={Number(currentItem?.id)} />
+          </div>
+        </div>
+      )}
 
       {isModifierModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">

@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { LogOut, ChevronDown, X, Zap } from "lucide-react";
 import { View } from "../types";
 import { motion, AnimatePresence } from "motion/react";
-import { NAV_ITEMS } from "../constants";
+import { NAV_ITEMS, DEFAULT_ROLE_MODULES } from "../constants";
 import { AuthUser } from "../services/authApi";
 
 interface SidebarProps {
@@ -23,6 +23,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentUser,
 }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    const handleChanged = () => setVersion((v) => v + 1);
+    window.addEventListener("role_modules_changed", handleChanged);
+    return () => window.removeEventListener("role_modules_changed", handleChanged);
+  }, []);
+
+  const allowedModules = useMemo(() => {
+    if (!currentUser) return [];
+    const role = (currentUser.userType || "Admin").toLowerCase();
+    try {
+      const stored = localStorage.getItem("pizzamax_role_modules");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed[role]) {
+          return parsed[role].map((m: string) => m.toLowerCase());
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse role modules in sidebar:", e);
+    }
+    
+    const defaults = DEFAULT_ROLE_MODULES[role] || DEFAULT_ROLE_MODULES["admin"] || [];
+    return defaults.map((m) => m.toLowerCase());
+  }, [currentUser, version]);
+
+  const filteredNavItems = useMemo(() => {
+    return NAV_ITEMS.map((item) => {
+      if (item.subItems) {
+        const allowedSubs = item.subItems.filter((sub) =>
+          allowedModules.includes(sub.id.toLowerCase())
+        );
+        if (allowedSubs.length === 0) return null;
+        return { ...item, subItems: allowedSubs };
+      }
+      if (allowedModules.includes(item.id.toLowerCase())) {
+        return item;
+      }
+      return null;
+    }).filter(Boolean) as typeof NAV_ITEMS;
+  }, [allowedModules]);
 
   const toggleExpand = (id: string) => {
     setExpandedItems((prev) =>
@@ -75,8 +117,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
             </div>
             <div className="flex flex-col text-left">
-              <span className="font-black text-2xl tracking-tighter text-white">
-                Clou<span className="text-teal-400">buzz</span>
+              <span className="font-black text-xl tracking-tighter text-white">
+                Broadway <span className="text-teal-400">Pizza</span>
               </span>
               <span className="text-[10px] font-bold text-teal-500/60 uppercase tracking-[0.2em] -mt-1">
                 Neural Engine
@@ -95,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar relative z-10">
           <ul className="space-y-1.5">
-            {NAV_ITEMS.map((item) => {
+            {filteredNavItems.map((item) => {
               const isExpanded = expandedItems.includes(item.id);
               const isActive =
                 currentView === item.id ||

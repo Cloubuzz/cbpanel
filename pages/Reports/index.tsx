@@ -151,7 +151,7 @@ export const Reports: React.FC<ReportsProps> = ({ onSelectReport }) => {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div>
           <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight mb-2">

@@ -66,7 +66,7 @@ export const Blogs: React.FC<BlogsProps> = ({ onAddBlog, onEditBlog }) => {
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 w-full space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">

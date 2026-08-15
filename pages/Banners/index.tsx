@@ -26,6 +26,17 @@ import {
   ApiBanner
 } from '../../services/bannersApi';
 
+export const formatBannerImageUrl = (imageVal?: any): string => {
+  if (!imageVal) return '';
+  const trimmed = String(imageVal).trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  const prefix = 'https://admin.broadwaypizza.com.pk';
+  return trimmed.startsWith('/') ? `${prefix}${trimmed}` : `${prefix}/${trimmed}`;
+};
+
 interface Banner {
   id: number;
   city: string;
@@ -39,6 +50,7 @@ interface Banner {
   imageType: string; // Banner, Popup
   channel: string; // Web, App
   link1: string;
+  apiRaw?: ApiBanner;
 }
 
 export const Banners: React.FC = () => {
@@ -64,14 +76,10 @@ export const Banners: React.FC = () => {
       return String(val);
     };
 
-    let img = cleanString(b.ImageURL);
-    if (img && !img.startsWith('http://') && !img.startsWith('https://')) {
-      img = 'https://services-pizzamax.cloubuzz.com' + (img.startsWith('/') ? '' : '/') + img;
-    }
     return {
       id: b.ID || 0,
       city: cleanString(b.City) || 'All',
-      imageUrl: img,
+      imageUrl: formatBannerImageUrl(b.ImageURL),
       link: cleanString(b.Link),
       isActive: !!b.IsActive,
       days: cleanString(b.Days) || 'All',
@@ -80,7 +88,8 @@ export const Banners: React.FC = () => {
       endTime: cleanString(b.EndTime) || '24',
       imageType: cleanString(b.ImageType) || 'Banner',
       channel: cleanString(b.Channel) || 'Web',
-      link1: cleanString(b.Link1)
+      link1: cleanString(b.Link1),
+      apiRaw: b
     };
   }, []);
 
@@ -156,7 +165,12 @@ export const Banners: React.FC = () => {
     const payload: ApiBanner = {
       ID: currentBanner.id !== 0 ? currentBanner.id : undefined,
       City: currentBanner.city,
-      ImageURL: currentBanner.imageUrl,
+      ImageURL: (() => {
+        const oldVal = currentBanner.apiRaw?.ImageURL || '';
+        return currentBanner.imageUrl.startsWith('data:')
+          ? currentBanner.imageUrl
+          : (currentBanner.imageUrl === formatBannerImageUrl(oldVal) ? oldVal : currentBanner.imageUrl);
+      })(),
       Link: currentBanner.link,
       IsActive: currentBanner.isActive,
       Days: currentBanner.days,

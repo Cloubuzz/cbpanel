@@ -29,3 +29,8 @@ Thumbs.db
 # Optional caches
 .cache/
 .vite/
+
+# Local Dev Scratches and Temp Files
+scratch/
+temp_db_check/
+login.json

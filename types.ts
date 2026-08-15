@@ -27,7 +27,16 @@ export type View =
   | "discounts"
   | "marketing"
   | "blogs"
-  | "help-desk";
+  | "help-desk"
+  | "audit-logs"
+  | "tests"
+  | "enquiries"
+  | "orders"
+  | "retention"
+  | "hold-items"
+  | "users"
+  | "role-management"
+  | "profile";
 
 export type TicketStatus = "open" | "in-progress" | "resolved";
 
@@ -46,6 +55,7 @@ export interface MetricCardProps {
   icon: ReactNode;
   color?: string;
   isLoading?: boolean;
+  sparklineData?: { val: number }[];
 }
 
 export interface ActivityItem {

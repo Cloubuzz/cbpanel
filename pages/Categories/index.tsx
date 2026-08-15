@@ -20,6 +20,7 @@ import { useAppSelector } from '../../store/hooks';
 import { selectToken } from '../../store/selectors/appSelectors';
 import { asText } from '../../lib/apiValue';
 import { fetchCategories, addCategory, updateCategory, deleteCategory, type ApiCategory } from '../../services/categoriesApi';
+import { HistoryTab } from '../../components/HistoryTab';
 
 interface Availability {
   day: string;
@@ -68,7 +69,7 @@ const mapApiCategory = (apiCat: ApiCategory): Category => ({
   isActive: apiCat.IsActive,
   order: apiCat.ORDER,
   image: apiCat.CategoryImage && apiCat.CategoryImage !== '' && apiCat.IsCategoryImageActive
-    ? (apiCat.CategoryImage.startsWith('http') ? apiCat.CategoryImage : `https://adminapi-pizzamax.cloubuzz.com/wwwroot/images/category/${apiCat.CategoryImage}`)
+    ? (apiCat.CategoryImage.startsWith('http') ? apiCat.CategoryImage : `https://adminapi.broadwaypizza.com.pk/images/category/${apiCat.CategoryImage}`)
     : undefined,
   availability: buildAvailabilityFromApi(apiCat),
   apiRaw: apiCat,
@@ -83,6 +84,7 @@ export const Categories: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'config' | 'history'>('config');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadCategories = useCallback(async () => {
@@ -114,11 +116,13 @@ export const Categories: React.FC = () => {
       availability: DEFAULT_AVAILABILITY
     };
     setCurrentCategory(newCategory);
+    setActiveTab('config');
     setIsEditing(true);
   };
 
   const handleEdit = (category: Category) => {
     setCurrentCategory({ ...category });
+    setActiveTab('config');
     setIsEditing(true);
   };
 
@@ -352,29 +356,50 @@ export const Categories: React.FC = () => {
                 exit={{ opacity: 0, y: -20 }}
                 className="bg-white dark:bg-slate-900 rounded-[32px] shadow-xl border border-slate-100 dark:border-slate-800 overflow-hidden"
               >
-                <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
-                      <Settings2 size={24} />
+                <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-500 flex items-center justify-center">
+                        <Settings2 size={24} />
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                          {currentCategory.apiRaw ? 'Edit Category' : 'New Category'}
+                        </h2>
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Configure category details and assignments</p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                        {currentCategory.id ? 'Edit Category' : 'New Category'}
-                      </h2>
-                      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Configure category details and assignments</p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="p-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                      >
+                        <X size={24} />
+                      </button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="p-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                    >
-                      <X size={24} />
-                    </button>
-                  </div>
+
+                  {currentCategory.apiRaw && (
+                    <div className="flex gap-4 border-b border-slate-100 dark:border-slate-800 -mb-8 mt-2">
+                      <button
+                        onClick={() => setActiveTab('config')}
+                        className={`pb-4 px-2 font-bold text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'config' ? 'border-teal-500 text-teal-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                      >
+                        Configuration
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('history')}
+                        className={`pb-4 px-2 font-bold text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'history' ? 'border-teal-500 text-teal-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                      >
+                        History
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="p-8 space-y-10">
+                {activeTab === 'config' ? (
+                  <>
+                    <div className="p-8 space-y-10">
                   {/* Basic Info */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
@@ -620,7 +645,13 @@ export const Categories: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </>
+            ) : (
+              <div className="p-8">
+                <HistoryTab entityName="MenuCategory" entityId={Number(currentCategory.id)} />
+              </div>
+            )}
+          </motion.div>
             ) : (
               <div className="h-full min-h-[600px] flex flex-col items-center justify-center text-center p-12 bg-white dark:bg-slate-900 rounded-[32px] border-2 border-dashed border-slate-100 dark:border-slate-800">
                 <div className="w-24 h-24 bg-teal-500/10 text-teal-500 rounded-full flex items-center justify-center mb-8 animate-bounce">

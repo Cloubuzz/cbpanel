@@ -297,3 +297,202 @@ export const processOrder = async (payload: ProcessOrderPayload, token: string):
     throw new Error('Order process action failed.');
   }
 };
+
+export interface OrderRecord {
+  ID: number;
+  Customer: string;
+  Mobile: string;
+  Outlet: string;
+  PaymentType: string;
+  channel: string;
+  Area: string;
+  City: string;
+  Amount: string | number;
+  Created: string;
+  Status: string;
+  Modified?: string;
+}
+
+export const searchOrders = async (token: string, query: string): Promise<OrderRecord[]> => {
+  const params = new URLSearchParams();
+  params.append('query', query);
+
+  const response = await requestJson<{ responseType: number; message: string; data: OrderRecord[] }>(
+    `${API_BASE_PATH}/orders/search?${params.toString()}`,
+    {
+      method: 'GET',
+      headers: { accept: '*/*', Authorization: `Bearer ${token}` },
+    }
+  );
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to search orders.');
+  }
+  return response.data ?? [];
+};
+
+export interface CustomerJourneyItem {
+  ID: number;
+  Name?: string;
+  Phone?: string;
+  City?: string;
+  Area?: string;
+  Event?: string;
+  AddAddress?: string;
+  AddtoCart?: string;
+  CheckOut?: string;
+  PlaceOrder?: number | boolean;
+  Created?: string;
+  Status?: string;
+  Remarks?: string;
+}
+
+export interface CustomerJourneyResponse {
+  page: number;
+  pageSize: number;
+  data: CustomerJourneyItem[];
+}
+
+export const fetchCustomerJourney = async (
+  token: string,
+  page = 1,
+  pageSize = 50
+): Promise<CustomerJourneyResponse> => {
+  const response = await requestJson<{
+    responseType: number;
+    message: string;
+    data: CustomerJourneyResponse;
+  }>(`${API_BASE_PATH}/orders/customerjourney?page=${page}&pageSize=${pageSize}`, {
+    method: 'GET',
+    headers: { accept: '*/*', Authorization: `Bearer ${token}` },
+  });
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to fetch customer journey list.');
+  }
+  return response.data;
+};
+export const updateCustomerJourney = async (
+  token: string,
+  id: number,
+  status: string,
+  remarks: string
+): Promise<void> => {
+  const response = await requestJson<{ responseType: number; message: string }>(
+    `${API_BASE_PATH}/orders/customerjourney/${id}`,
+    {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: { status, remarks },
+    }
+  );
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to update customer journey.');
+  }
+};
+
+export interface BlockedCustomer {
+  id: string | number;
+  phone: string;
+  blockedDate: string;
+  blockedBy: string;
+}
+
+export const fetchBlockedCustomers = async (token: string): Promise<BlockedCustomer[]> => {
+  const response = await requestJson<{
+    responseType: number;
+    message: string;
+    data: BlockedCustomer[];
+  }>(`${API_BASE_PATH}/orders/blocked-customers`, {
+    method: 'GET',
+    headers: { accept: '*/*', Authorization: `Bearer ${token}` },
+  });
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to fetch blocked customers list.');
+  }
+  return response.data ?? [];
+};
+
+export const blockCustomer = async (token: string, mobile: string): Promise<void> => {
+  const response = await requestJson<{ responseType: number; message: string }>(
+    `${API_BASE_PATH}/orders/block-customer`,
+    {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: { mobile },
+    }
+  );
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to block customer.');
+  }
+};
+
+export const unblockCustomer = async (token: string, mobile: string): Promise<void> => {
+  const response = await requestJson<{ responseType: number; message: string }>(
+    `${API_BASE_PATH}/orders/unblock-customer`,
+    {
+      method: 'POST',
+      headers: {
+        accept: '*/*',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: { mobile },
+    }
+  );
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to unblock customer.');
+  }
+};
+
+export interface LoyaltyInfo {
+  responseType: number;
+  totalOrders: number;
+  itemName: string;
+  eligible: boolean;
+  error?: string;
+}
+
+export interface LoyaltyOrderRecord {
+  ID: number;
+  Customer: string;
+  Mobile: string;
+  Outlet: string;
+  PaymentType: string;
+  channel: string;
+  Area: string;
+  City: string;
+  Amount: number;
+  Created: string;
+  Status: string;
+  Modified: string;
+}
+
+export interface LoyaltyCheckData {
+  loyaltyInfo: LoyaltyInfo;
+  orders: LoyaltyOrderRecord[];
+}
+
+export const checkCustomerLoyalty = async (
+  token: string,
+  mobile: string
+): Promise<LoyaltyCheckData> => {
+  const response = await requestJson<{
+    responseType: number;
+    message: string;
+    data: LoyaltyCheckData;
+  }>(`${API_BASE_PATH}/orders/loyalty-check?mobile=${encodeURIComponent(mobile)}`, {
+    method: 'GET',
+    headers: { accept: '*/*', Authorization: `Bearer ${token}` },
+  });
+  if (response.responseType !== 1) {
+    throw new Error(response.message || 'Failed to check customer loyalty.');
+  }
+  return response.data;
+};

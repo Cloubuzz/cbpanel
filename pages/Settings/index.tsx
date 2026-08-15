@@ -60,17 +60,17 @@ export const Settings: React.FC = () => {
                       <div className="grid grid-cols-2 gap-4">
                          <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Company Name</label>
-                            <input type="text" defaultValue="Cloubuzz Inc." className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-slate-800 dark:text-slate-200" />
+                            <input type="text" defaultValue="Broadway Pizza Inc." className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-slate-800 dark:text-slate-200" />
                          </div>
                          <div>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Store URL</label>
-                            <input type="text" defaultValue="https://cloubuzz.com" className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-slate-800 dark:text-slate-200" />
+                            <input type="text" defaultValue="https://broadwaypizza.com.pk" className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-slate-800 dark:text-slate-200" />
                          </div>
                       </div>
 
                       <div>
                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Support Email</label>
-                         <input type="email" defaultValue="support@cloubuzz.com" className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-slate-800 dark:text-slate-200" />
+                         <input type="email" defaultValue="support@broadwaypizza.com.pk" className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/50 text-slate-800 dark:text-slate-200" />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">

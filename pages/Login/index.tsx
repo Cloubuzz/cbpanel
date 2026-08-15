@@ -85,7 +85,7 @@ export const Login: React.FC<LoginProps> = ({
                 />
               </div>
               <h1 className="text-3xl font-bold text-white tracking-tight mb-1">
-                Cloubuzz
+                Broadway Pizza
               </h1>
               <div className="flex items-center gap-2 text-xs font-mono text-teal-400/80 bg-teal-950/30 px-3 py-1 rounded-full border border-teal-900/50">
                 <Globe size={10} />

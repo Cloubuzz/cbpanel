@@ -11,7 +11,7 @@ export const formatMenuItemImageUrl = (imageVal?: any): string => {
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
     return trimmed;
   }
-  return `https://services-pizzamax.cloubuzz.com/Images/ProductImages/${trimmed}`;
+  return `https://admin.broadwaypizza.com.pk/Images/ProductImages/${trimmed}`;
 };
 
 const mapSingleSize = (s: any) => {
@@ -187,8 +187,18 @@ export const mapMenuItemToUpdatePayload = (item: MenuItem): UpdateMenuItemPayloa
   startTime: item.startTime,
   endTime: item.endTime,
   days: joinDays(item.availableDays),
-  imageName: item.image || item.apiRaw?.ItemImage || (item.apiRaw as any)?.itemImage || '',
-  imagePopupName: item.imagePopup || item.apiRaw?.ItemImagePopup || (item.apiRaw as any)?.itemImagePopup || '',
+  imageName: (() => {
+    const oldVal = asText(item.apiRaw?.ItemImage || (item.apiRaw as any)?.itemImage || (item.apiRaw as any)?.image);
+    return item.image.startsWith('data:')
+      ? item.image
+      : (item.image === formatMenuItemImageUrl(oldVal) ? oldVal : item.image);
+  })(),
+  imagePopupName: (() => {
+    const oldVal = asText(item.apiRaw?.ItemImagePopup || (item.apiRaw as any)?.itemImagePopup || (item.apiRaw as any)?.imagePopup);
+    return (item.imagePopup || '').startsWith('data:')
+      ? (item.imagePopup || '')
+      : (item.imagePopup === formatMenuItemImageUrl(oldVal) ? oldVal : (item.imagePopup || ''));
+  })(),
   sizes: (item.sizes || []).map((s) => ({
     id: Number(s.id) || 0,
     size: s.size,

@@ -41,10 +41,21 @@ const parsePayload = async (response: Response): Promise<unknown> => {
   }
 };
 
+export const getApiUrl = (url: string): string => {
+  if (url.startsWith('/adminapi')) {
+    const base = import.meta.env.DEV
+      ? ''
+      : (import.meta.env.VITE_API_BASE_URL || 'https://adminapi.broadwaypizza.com.pk');
+    return `${base}${url}`;
+  }
+  return url;
+};
+
 export const requestJson = async <T>(
   url: string,
   options: RequestJsonOptions = {},
 ): Promise<T> => {
+  const apiUrl = getApiUrl(url);
   const { body, headers, timeoutMs = DEFAULT_TIMEOUT_MS, ...restOptions } = options;
 
   const controller = new AbortController();
@@ -57,7 +68,7 @@ export const requestJson = async <T>(
   };
 
   try {
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       ...restOptions,
       headers: mergedHeaders,
       signal: controller.signal,

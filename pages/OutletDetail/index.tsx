@@ -360,6 +360,12 @@ export const OutletDetail: React.FC<OutletDetailProps> = ({ onBack, outletId }) 
     polygon.setMap(mapRef.current);
     polygonRefs.current[targetOutletId] = polygon;
 
+    if (isMain && mapRef.current) {
+      const bounds = new google.maps.LatLngBounds();
+      googlePaths.forEach(p => bounds.extend(p));
+      mapRef.current.fitBounds(bounds);
+    }
+
     // Listen to changes in the path
     const path = polygon.getPath();
     const updatePathState = () => {
@@ -697,7 +703,7 @@ export const OutletDetail: React.FC<OutletDetailProps> = ({ onBack, outletId }) 
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1200px] mx-auto">
+    <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto min-h-screen">
 
       {/* Top Navigation & Actions */}
       <div className="flex items-center justify-between">
