@@ -105,7 +105,8 @@ export interface DashboardState {
 export const useDashboardData = (
   token: string | null,
   dateFilter: string,
-  branchId: number | null
+  branchId: number | null,
+  shiftStartHour: string = '08:00'
 ): DashboardState => {
   // --- KPI state ---
   const [kpiLoading, setKpiLoading] = useState(false);
@@ -131,13 +132,12 @@ export const useDashboardData = (
   const [productCombos, setProductCombos] = useState<DashboardProductCombo[]>([]);
   const [customerJourney, setCustomerJourney] = useState<DashboardCustomerJourneyItem[]>([]);
 
-  // Ref so the loadChart callback always uses latest token/dateFilter/branchId
-  const optsRef = useRef({ ...getDateRange(dateFilter), branchId: branchId ?? undefined });
+  const optsRef = useRef({ ...getDateRange(dateFilter, shiftStartHour), branchId: branchId ?? undefined });
   const tokenRef = useRef(token);
   useEffect(() => {
-    optsRef.current = { ...getDateRange(dateFilter), branchId: branchId ?? undefined };
+    optsRef.current = { ...getDateRange(dateFilter, shiftStartHour), branchId: branchId ?? undefined };
     tokenRef.current = token;
-  }, [token, dateFilter, branchId]);
+  }, [token, dateFilter, branchId, shiftStartHour]);
 
   // --- Fetcher map ---
   const fetchChart = useCallback((name: ChartName) => {
@@ -216,7 +216,7 @@ export const useDashboardData = (
   useEffect(() => {
     if (!token) return;
     setKpiLoading(true);
-    const opts = { ...getDateRange(dateFilter), branchId: branchId ?? undefined };
+    const opts = { ...getDateRange(dateFilter, shiftStartHour), branchId: branchId ?? undefined };
     Promise.allSettled([
       fetchDashboardSalesRevenue(token, opts).then(setSalesRevenue).catch(() => setSalesRevenue(null)),
       fetchDashboardSalesCount(token, opts).then(setSalesCount).catch(() => setSalesCount(null)),
@@ -226,7 +226,7 @@ export const useDashboardData = (
       fetchDashboardSuccessRateBox(token, opts).then(setSuccessRateBox).catch(() => setSuccessRateBox(null)),
       fetchDashboardNewOrdersBox(token, opts).then(setNewOrdersBox).catch(() => setNewOrdersBox(null)),
     ]).finally(() => setKpiLoading(false));
-  }, [token, dateFilter, branchId]);
+  }, [token, dateFilter, branchId, shiftStartHour]);
 
   // --- On dateFilter/branchId change: refetch already-loaded charts ---
   useEffect(() => {
@@ -249,7 +249,7 @@ export const useDashboardData = (
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFilter, branchId]);
+  }, [dateFilter, branchId, shiftStartHour]);
 
   return {
     salesRevenue, salesCount, rejectedCount, rejectedRevenue,

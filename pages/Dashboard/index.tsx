@@ -21,6 +21,7 @@ import { fetchOutletList, type OutletListItem } from '../../services/outletsApi'
 export const Dashboard: React.FC = () => {
   const token = useAppSelector(selectToken);
   const [dateFilter, setDateFilter] = useState('Last 7 Days');
+  const [shiftStartHour, setShiftStartHour] = useState('08:00');
   const [branches, setBranches] = useState<OutletListItem[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
 
@@ -31,7 +32,7 @@ export const Dashboard: React.FC = () => {
       .catch(err => console.error('Error fetching branches:', err));
   }, [token]);
 
-  const { chartStatus, loadChart, refreshChart, kpiLoading, ...data } = useDashboardData(token, dateFilter, selectedBranchId);
+  const { chartStatus, loadChart, refreshChart, kpiLoading, ...data } = useDashboardData(token, dateFilter, selectedBranchId, shiftStartHour);
 
   return (
     <div className="p-6 md:p-8 space-y-8 animate-fade-in pb-20 max-w-[1600px] mx-auto min-h-screen font-sans bg-slate-50 dark:bg-slate-950">
@@ -41,6 +42,8 @@ export const Dashboard: React.FC = () => {
         branches={branches}
         selectedBranchId={selectedBranchId}
         onBranchChange={setSelectedBranchId}
+        shiftStartHour={shiftStartHour}
+        onShiftStartHourChange={setShiftStartHour}
       />
 
       {/* KPI row — always loads on visit */}

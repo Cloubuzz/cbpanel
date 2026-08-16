@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Utensils, MapPin, Calendar, ChevronDown, Check, Download } from 'lucide-react';
+import { Utensils, MapPin, Calendar, ChevronDown, Check, Download, Clock } from 'lucide-react';
 import { DATE_OPTIONS } from '../constants';
 import { type OutletListItem } from '../../../services/outletsApi';
 
@@ -9,6 +9,8 @@ interface Props {
   branches: OutletListItem[];
   selectedBranchId: number | null;
   onBranchChange: (branchId: number | null) => void;
+  shiftStartHour: string;
+  onShiftStartHourChange: (hour: string) => void;
 }
 
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
@@ -26,15 +28,26 @@ const getFilterLabel = (filter: string): string => {
   return filter;
 };
 
+const formatShiftLabel = (timeStr: string): string => {
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:${m} ${ampm}`;
+};
+
 export const DashboardHeader: React.FC<Props> = ({
   dateFilter,
   onDateFilterChange,
   branches,
   selectedBranchId,
   onBranchChange,
+  shiftStartHour,
+  onShiftStartHourChange,
 }) => {
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isBranchOpen, setIsBranchOpen] = useState(false);
+  const [isShiftOpen, setIsShiftOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCustomPicker, setShowCustomPicker] = useState(false);
 
@@ -44,6 +57,7 @@ export const DashboardHeader: React.FC<Props> = ({
 
   const dateRef = useRef<HTMLDivElement>(null);
   const branchRef = useRef<HTMLDivElement>(null);
+  const shiftRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -53,6 +67,9 @@ export const DashboardHeader: React.FC<Props> = ({
       }
       if (branchRef.current && !branchRef.current.contains(e.target as Node)) {
         setIsBranchOpen(false);
+      }
+      if (shiftRef.current && !shiftRef.current.contains(e.target as Node)) {
+        setIsShiftOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -268,6 +285,61 @@ export const DashboardHeader: React.FC<Props> = ({
                   </button>
                 </div>
               )}
+            </div>
+          )}
+        </div>
+
+        {/* Shift Start Hour */}
+        <div className="relative" ref={shiftRef}>
+          <button
+            onClick={() => setIsShiftOpen(!isShiftOpen)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+          >
+            <Clock size={14} className="text-teal-500" />
+            <span>Shift: {formatShiftLabel(shiftStartHour)}</span>
+            <ChevronDown size={14} className={`transition-transform duration-200 ${isShiftOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isShiftOpen && (
+            <div className="absolute top-full right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl z-50 overflow-hidden w-48">
+              <div className="p-1.5">
+                {[
+                  { value: '00:00', label: '12:00 AM (Calendar)' },
+                  { value: '06:00', label: '06:00 AM' },
+                  { value: '08:00', label: '08:00 AM (Default)' },
+                  { value: '09:00', label: '09:00 AM' },
+                  { value: '10:00', label: '10:00 AM' },
+                  { value: '12:00', label: '12:00 PM' }
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      onShiftStartHourChange(opt.value);
+                      setIsShiftOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-xs font-bold rounded-lg transition-colors ${
+                      shiftStartHour === opt.value
+                        ? 'bg-teal-500 text-white'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {shiftStartHour === opt.value && <Check size={12} />}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Custom Hour</span>
+                  <input
+                    type="time"
+                    value={shiftStartHour}
+                    onChange={(e) => onShiftStartHourChange(e.target.value)}
+                    className="w-full px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-1 focus:ring-teal-500 text-slate-850 dark:text-slate-100"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
