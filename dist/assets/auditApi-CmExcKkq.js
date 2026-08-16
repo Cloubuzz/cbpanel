@@ -1,0 +1,6 @@
+import{c as s,r as d}from"./index-plKbbIAx.js";/**
+ * @license lucide-react v0.344.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const y=s("ChevronUp",[["path",{d:"m18 15-6-6-6 6",key:"153udz"}]]),a="/adminapi";async function r(o,e,t="GET",n){return d(`${a}/${e}`,{method:t,headers:{accept:"*/*",Authorization:`Bearer ${o}`}})}const u=async(o,e={})=>{const t=[];e.entityName&&t.push(`entityName=${encodeURIComponent(e.entityName)}`),e.entityId&&t.push(`entityId=${e.entityId}`),e.actionType&&t.push(`actionType=${encodeURIComponent(e.actionType)}`),e.userId&&t.push(`userId=${e.userId}`),e.startDate&&t.push(`startDate=${encodeURIComponent(e.startDate)}`),e.endDate&&t.push(`endDate=${encodeURIComponent(e.endDate)}`);const n=t.length>0?`?${t.join("&")}`:"",i=await r(o,`AuditLogs/list${n}`);if(i.responseType!==1||!Array.isArray(i.data))throw new Error("Failed to fetch audit logs.");return i.data},h=async(o,e,t)=>{const n=await r(o,`AuditLogs/history?entityName=${encodeURIComponent(e)}&entityId=${t}`);if(n.responseType!==1||!Array.isArray(n.data))throw new Error("Failed to fetch record history.");return n.data};export{y as C,u as a,h as f};
