@@ -46,9 +46,10 @@ export const OrderFulfillmentChart: React.FC<Props> = ({ data, isLoading }) => {
   const formatSeconds = (totalSec: number) => {
     if (totalSec <= 0) return '0s';
     const m = Math.floor(totalSec / 60);
-    const s = Math.round(totalSec % 60);
-    if (m === 0) return `${s}s`;
-    return `${m}m ${s}s`;
+    const s = totalSec % 60;
+    const sFormatted = s % 1 === 0 ? s.toString() : s.toFixed(2);
+    if (m === 0) return `${sFormatted}s`;
+    return `${m}m ${sFormatted}s`;
   };
 
   return (
