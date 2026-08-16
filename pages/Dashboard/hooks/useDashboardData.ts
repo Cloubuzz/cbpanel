@@ -155,7 +155,27 @@ export const useDashboardData = (
         .then(d => setPaymentSplit(d.map((item, i) => ({ name: item.paymenttype, value: item.percentage, fill: CHART_COLORS[i % CHART_COLORS.length], totalSale: item.total_sales }))))
         .catch(() => setPaymentSplit([])),
       orderFulfillment: () => fetchDashboardOrderFulfillment(t, opts)
-        .then(d => setOrderFulfillment(d.map(item => ({ name: item.STATUS, value: item.percentage, fill: getFulfillmentColor(item.STATUS) }))))
+        .then(d => {
+          const merged: Record<string, number> = {};
+          d.forEach(item => {
+            let name = item.STATUS;
+            const nameLower = name.toLowerCase();
+            if (
+              nameLower === 'undefined-decline' ||
+              nameLower === 'pending- card required' ||
+              nameLower === 'pending unverified- card required'
+            ) {
+              name = 'Pending Card Required';
+            }
+            merged[name] = (merged[name] || 0) + item.percentage;
+          });
+          const result = Object.entries(merged).map(([name, value]) => ({
+            name,
+            value: Number(value.toFixed(2)),
+            fill: getFulfillmentColor(name)
+          }));
+          setOrderFulfillment(result);
+        })
         .catch(() => setOrderFulfillment([])),
       aov: () => fetchDashboardAOV(t, opts).then(setAovData).catch(() => setAovData([])),
       branchPerformance: () => fetchDashboardBranchPerformance(t, { ...opts, pageSize: 200 }).then(setBranchPerformance).catch(() => setBranchPerformance([])),
