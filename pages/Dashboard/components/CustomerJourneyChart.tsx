@@ -17,8 +17,8 @@ const getStepColor = (step: string): string => {
 };
 
 export const CustomerJourneyChart: React.FC<Props> = ({ data, isLoading }) => {
-  // Order steps: Add to Cart, Add Address, Checkout, Place Order
-  const stepOrder = ['cart', 'address', 'checkout', 'place'];
+  // Order steps: Add Address, Add to Cart, Checkout, Place Order
+  const stepOrder = ['address', 'cart', 'checkout', 'place'];
   
   const sortedData = [...data].sort((a, b) => {
     const idxA = stepOrder.findIndex(s => a.step.toLowerCase().includes(s));
